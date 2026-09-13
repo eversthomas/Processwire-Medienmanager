@@ -172,16 +172,16 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 | # | Schritt | Beschreibung | Nach |
 |---|---------|--------------|-----|
-| 8.1 | `[ ]` | **`FieldtypeMedienManager::getBlankValue()`:** Explizites Überschreiben mit Rückgabe eines leeren `PageArray` (`$pages->newPageArray()`) statt des geerbten `WireArray` — garantiert konsistente Methoden auf ungespeicherten/leeren Feldern. | Phase 7 |
-| 8.2 | `[ ]` | **Eigenschafts-Vererbung `getInputfield()`:** Übergabe von `maxItems` und `allowedTypes` vom `Field` an die `Inputfield`-Instanz (`$inputfield->set(...)`), damit Grenzwerte und Filter auch im Kontext von Ajax/Repeaters zuverlässig greifen. | Phase 7 |
-| 8.3 | `[ ]` | **`MediaManagerAPI extends Wire`:** Anbindung an ProcessWires Hook-Dispatcher (`Wire::__call()`); Kernmethoden hookbar deklarieren (`___createMediaItem()`, `___findMedia()`, `___replacePrimaryFile()`, `___deleteMedia()`). | Phase 4 |
-| 8.4 | `[ ]` | **Robuste Initialisierung:** Absicherung gegen Null-Referenzen bei `$this->wire->page` in `init()` für CLI- und API-Aufrufe. | Phase 0 |
+| 8.1 | `[x]` | **`FieldtypeMedienManager::getBlankValue()`:** Explizites Überschreiben mit Rückgabe eines leeren `PageArray` (`$pages->newPageArray()`) statt des geerbten `WireArray` — garantiert konsistente Methoden auf ungespeicherten/leeren Feldern. | Phase 7 |
+| 8.2 | `[x]` | **Eigenschafts-Vererbung `getInputfield()`:** Übergabe von `maxItems` und `allowedTypes` vom `Field` an die `Inputfield`-Instanz (`$inputfield->set(...)`), damit Grenzwerte und Filter auch im Kontext von Ajax/Repeaters zuverlässig greifen. | Phase 7 |
+| 8.3 | `[x]` | **`MediaManagerAPI extends Wire`:** Anbindung an ProcessWires Hook-Dispatcher (`Wire::__call()`); Kernmethoden hookbar deklarieren (`___createMediaItem()`, `___findMedia()`, `___replacePrimaryFile()`, `___deleteMedia()`). | Phase 4 |
+| 8.4 | `[x]` | **Robuste Initialisierung:** Absicherung gegen Null-Referenzen bei `$this->wire->page` in `init()` für CLI- und API-Aufrufe. | Phase 0 |
 
 ---
 
 ## Phase 9 — Modernes Visual Styling & UI-Polish (Admin & Picker)
 
-**Ziel:** Frische, zeitgemäße Optik für Redakteure bei voller UIkit-Kompatibilität und subtilen Animationen.
+**Ziel:** Frische, zeitgemäße Optik für Redakteure bei voller UIkit-Kompatibilität, subtilen Animationen und klarem Feedback.
 
 | # | Schritt | Beschreibung | Nach |
 |---|---------|--------------|-----|
@@ -189,6 +189,8 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 | 9.2 | `[ ]` | **Toolbar & Bulk-Bar:** Visuelle Verbindung, moderner Segment-Umschalter Raster/Liste, akzentuierte Auswahlzustände und animierte Zähler-Badges. | Phase 2 |
 | 9.3 | `[ ]` | **Upload-Modal & Dropzone:** Moderne Drag&Drop-Optik mit Puls-Feedback und Datei-Preview-Chips. | Phase 1 |
 | 9.4 | `[ ]` | **Picker-Modal-Polish:** Modernisiertes Such- und Filter-Layout im Seiten-Editor mit schnellen visuellen Zuständen. | Phase 7 |
+| 9.5 | `[ ]` | **Feedback & Toasts:** Zuverlässige UIkit-Erfolgsbenachrichtigungen beim Zuweisen von Kategorien (Bulk & Einzeln) sowie bei Kategorie-Verwaltung. | Phase 2 |
+
 
 ---
 
@@ -237,6 +239,8 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 | 2026-04-13 | **Phase 6** umgesetzt: Schreib-AJAX nur POST+CSRF, Upload-Größe (ini + Modul-MB), Bulk-ID-Limit 500, Test-JSON ohne GET-Werte, `SECURITY.md`. Modulversion **1.9**. |
 | 2026-04-13 | **Phase 7** umgesetzt: `MedienManagerField`, Fieldtype-Vorlagen (Image/Images-ähnlich), Snippets in Feldkonfiguration, `getAccessibleLabel`/`getCaption`/`hasRenderableImage`, Picker-Filter `allowed_types`, `API.md` erweitert. Modulversion **2.0**. |
 | 2026-09-13 | **Phasen 8 bis 11** ergänzt: Phase 8 (ProcessWire-Core-Harmonisierung & Hook-Fundament aus Skill-Review), Phase 9 (Visual Styling & UI-Polish), Phase 10 (Frontend-Mini-API & Responsive WebP/`<picture>`), Phase 11 (Asset-Intelligence: Verwendungsnachweis, Focal Point, SVG-Sanitizer). |
+| 2026-09-13 | **Phase 8** umgesetzt und bestätigt (Version **2.1.0**). |
+| 2026-09-13 | **Phase 9** im Code umgesetzt: Modernes Visual Styling (weiche Schatten, Hover-Lift, Frosted-Glass-Overlays, Pill-Badges für Medientypen, animierte Segment-Controls, Dropzone-Polish, Inputfield-Chips mit Checkmark-Animation) und Toast-Erfolgsmeldungen beim Kategorie-Setzen. |
 
 ---
 

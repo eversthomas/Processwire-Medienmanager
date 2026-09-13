@@ -165,8 +165,10 @@ trait MediaManagerRenderTrait {
 		if($sizeStr !== '') {
 			$metaBits[] = $sizeStr;
 		}
-		$metaBits[] = $typ;
-		$metaLine   = '<span class="mm-grid-meta uk-text-meta">' . $sanitizer->entities(implode(' · ', $metaBits)) . '</span>';
+		$badgeClass = 'mm-badge-' . $sanitizer->pageName($typ);
+		$typBadge   = "<span class='mm-type-badge {$badgeClass}'>" . $sanitizer->entities(strtoupper($typ)) . "</span>";
+		$specsHtml  = count($metaBits) ? "<span class='mm-grid-specs'>" . $sanitizer->entities(implode(' · ', $metaBits)) . "</span>" : '';
+		$metaLine   = "<div class='mm-grid-meta uk-text-meta'>{$typBadge}{$specsHtml}</div>";
 
 		if($thumbUrl) {
 			$thumbInner = "<img class='mm-grid-img' src='" . $sanitizer->entities($thumbUrl) . "' alt='" . $imgAlt . "' loading='lazy'>";
@@ -251,6 +253,9 @@ trait MediaManagerRenderTrait {
 		$dimEsc  = $dim !== '' ? $sanitizer->entities($dim) : '—';
 		$sizeEsc = $sizeStr !== '' ? $sanitizer->entities($sizeStr) : '—';
 
+		$badgeClass = 'mm-badge-' . $sanitizer->pageName($typ);
+		$typBadge   = "<span class='mm-type-badge {$badgeClass}'>" . $sanitizer->entities(strtoupper($typ)) . "</span>";
+
 		$pubUrl  = $this->api()->getPublicFileUrl($item);
 		$pubAttr = $pubUrl !== '' ? htmlspecialchars($pubUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8') : '';
 		$copyBtn = $pubAttr !== ''
@@ -263,7 +268,7 @@ trait MediaManagerRenderTrait {
 			<td><div class='mm-list-file'>{$fileEsc}</div>{$subLine}</td>
 			<td>{$dimEsc}</td>
 			<td>{$sizeEsc}</td>
-			<td><span class='uk-label uk-label-default'>" . $sanitizer->entities($typ) . "</span></td>
+			<td>{$typBadge}</td>
 			<td class='uk-text-nowrap'>
 				<a href='./edit/?id={$item->id}' class='uk-icon-link uk-margin-small-right' title='Bearbeiten'><i class='fa fa-pencil'></i></a>"
 				. ($this->api()->getPrimaryPageimage($item) ? "<a href='./imageedit/?id={$item->id}' class='uk-icon-link uk-margin-small-right' title='Bild bearbeiten'><i class='fa fa-crop'></i></a>" : '')

@@ -112,7 +112,20 @@ class FieldtypeMedienManager extends FieldtypeMulti {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * Passendes Inputfield für die Backend-Bearbeitung zurückgeben.
+	 * Standard-Wert für ungespeicherte / leere Felder.
+	 * Überschreibt FieldtypeMulti::getBlankValue() (WireArray) mit PageArray,
+	 * damit Methoden wie ->first(), ->has(), ->count() immer zuverlässig existieren.
+	 *
+	 * @param Page  $page
+	 * @param Field $field
+	 * @return PageArray
+	 */
+	public function getBlankValue(Page $page, Field $field): PageArray {
+		return $this->wire->pages->newPageArray();
+	}
+
+	/**
+	 * Passendes Inputfield für die Backend-Bearbeitung zurückgeben und konfigurieren.
 	 *
 	 * @param Page  $page
 	 * @param Field $field
@@ -121,6 +134,8 @@ class FieldtypeMedienManager extends FieldtypeMulti {
 	public function getInputfield(Page $page, Field $field): Inputfield {
 		/** @var InputfieldMedienManager $inputfield */
 		$inputfield = $this->wire->modules->get('InputfieldMedienManager');
+		$inputfield->set('maxItems', $field->get('maxItems'));
+		$inputfield->set('allowedTypes', $field->get('allowedTypes') ?: []);
 		return $inputfield;
 	}
 

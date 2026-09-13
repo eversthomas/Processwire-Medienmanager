@@ -38,7 +38,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 	public static function getModuleInfo(): array {
 		return [
 			'title'       => 'Medien Manager',
-			'version'     => '2.0.1',
+			'version'     => '2.1.0',
 			'summary'     => 'Zentrales Medienmanagement für Bilder, Videos und PDFs.',
 			'author'      => 'bsProcessMedienManager',
 			'icon'        => 'photo',
@@ -121,7 +121,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 		if($gl < 1) $gl = 24;
 		$this->limit = max(6, min(100, $gl));
 
-		if($this->wire->page->template == 'admin') {
+		if($this->wire->page && $this->wire->page->template == 'admin') {
 			$config    = $this->wire->config;
 			$moduleUrl = $config->urls->get('bsProcessMedienManager');
 			$config->styles->add($moduleUrl . 'css/medienmanager-admin.css');
@@ -625,6 +625,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 			if($titel) {
 				$this->api()->createKategorie($titel, $parentId);
 				$this->log("Kategorie erstellt: $titel");
+				$this->wire->message("Kategorie '{$titel}' wurde angelegt.");
 			}
 			$this->wire->session->redirect('./');
 		}
@@ -637,6 +638,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 				$this->log("Kategorie löschen fehlgeschlagen: ID $katId", true);
 			} else {
 				$this->log("Kategorie gelöscht: ID $katId");
+				$this->wire->message('Kategorie wurde gelöscht.');
 			}
 			$this->wire->session->redirect('./');
 		}

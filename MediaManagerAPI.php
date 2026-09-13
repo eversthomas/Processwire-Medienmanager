@@ -6,10 +6,7 @@
  * Kapselt Suche, Erstellung, Dateien, Kategorien und Bildoperationen (Variationen, Master-Resize,
  * WebP). Wird vom Process-Modul, Upload-Flows und optional von anderen Modulen genutzt.
  */
-class MediaManagerAPI {
-
-	/** @var ProcessWire */
-	protected $wire;
+class MediaManagerAPI extends Wire {
 
 	const ROOT_TEMPLATE      = 'medienmanager-root';
 	const ITEM_TEMPLATE      = 'medienmanager-item';
@@ -38,8 +35,11 @@ class MediaManagerAPI {
 	public const SLOT_CHIP_W = 120;
 	public const SLOT_CHIP_H = 90;
 
-	public function __construct(ProcessWire $wire) {
-		$this->wire = $wire;
+	public function __construct(?ProcessWire $wire = null) {
+		parent::__construct();
+		if($wire) {
+			$this->wire($wire);
+		}
 	}
 
 	/**
@@ -64,7 +64,7 @@ class MediaManagerAPI {
 	 *
 	 * @param array{typ?: string, typs?: list<string>, kategorie_id?: int, q?: string} $filters
 	 */
-	public function findMedia(array $filters = [], int $start = 0, int $limit = 24): PageArray {
+	public function ___findMedia(array $filters = [], int $start = 0, int $limit = 24): PageArray {
 		$sanitizer = $this->wire->sanitizer;
 		$selector = "template=" . self::ITEM_TEMPLATE . ", include=hidden, sort=-created";
 
@@ -114,12 +114,12 @@ class MediaManagerAPI {
 	}
 
 	/** Einzelnes Medien-Item oder leere Page bei ungültiger ID. */
-	public function getMediaItem(int $id): Page {
+	public function ___getMediaItem(int $id): Page {
 		return $this->wire->pages->get("id=" . (int)$id . ", template=" . self::ITEM_TEMPLATE . ", include=all");
 	}
 
 	/** Kategorie-Pages unter dem Root (oder unter $parentId). */
-	public function getKategorien(int $parentId = 0): PageArray {
+	public function ___getKategorien(int $parentId = 0): PageArray {
 		if($parentId <= 0) $parentId = $this->getRootPageId();
 		return $this->wire->pages->find("parent=$parentId, template=" . self::KATEGORIE_TEMPLATE . ", include=hidden, sort=title");
 	}
@@ -129,7 +129,7 @@ class MediaManagerAPI {
 	 *
 	 * @param array{titel?: string, typ?: string, beschreibung?: string, tags?: string, kategorie_id?: int} $data
 	 */
-	public function createMediaItem(array $data, string $uploadedFile = '', string $originalName = ''): Page {
+	public function ___createMediaItem(array $data, string $uploadedFile = '', string $originalName = ''): Page {
 		$sanitizer = $this->wire->sanitizer;
 		$rootId = $this->getRootPageId();
 		if($rootId <= 0) return $this->wire->pages->newNullPage();
@@ -207,7 +207,7 @@ class MediaManagerAPI {
 	 * frisch geladene Dateien — dann ist mm_bild leer und size() wird nie aufgerufen.
 	 * pages->getFresh() lädt die Page bewusst neu aus der DB (siehe PW-API pages->getFresh).
 	 */
-	public function createVariants(Page $p): void {
+	public function ___createVariants(Page $p): void {
 		$pid = (int) $p->id;
 		if($pid <= 0) return;
 
@@ -257,7 +257,7 @@ class MediaManagerAPI {
 	 *
 	 * @return bool True bei Erfolg
 	 */
-	public function rotateMasterPageimage(Pageimage $bild, int $degrees): bool {
+	public function ___rotateMasterPageimage(Pageimage $bild, int $degrees): bool {
 		if(!in_array(abs($degrees), [90, 180, 270], true)) return false;
 		$filename = $bild->filename();
 		if(!is_file($filename) || !is_readable($filename)) return false;
@@ -277,7 +277,7 @@ class MediaManagerAPI {
 	 *
 	 * @param bool $cropping True: Zielbox wird gefüllt (ggf. beschnitten); False: proportionales Einpassen in die Box.
 	 */
-	public function resizeMasterPageimage(Pageimage $bild, int $width, int $height, bool $cropping = false): bool {
+	public function ___resizeMasterPageimage(Pageimage $bild, int $width, int $height, bool $cropping = false): bool {
 		$width  = max(1, $width);
 		$height = max(1, $height);
 		if(strtolower((string) $bild->ext) === 'svg') return false;
@@ -303,7 +303,7 @@ class MediaManagerAPI {
 	 *
 	 * @return bool True wenn WebP existiert oder neu erzeugt wurde
 	 */
-	public function ensureWebpForPageimage(Pageimage $img): bool {
+	public function ___ensureWebpForPageimage(Pageimage $img): bool {
 		if(strtolower((string) $img->ext) === 'svg') return false;
 		$webp = $img->webp();
 		if($webp->exists()) return true;
@@ -387,7 +387,7 @@ class MediaManagerAPI {
 	 *
 	 * @param array<string, mixed> $data
 	 */
-	public function saveMediaItem(int $id, array $data): Page {
+	public function ___saveMediaItem(int $id, array $data): Page {
 		$p = $this->getMediaItem($id);
 		if(!$p->id) return $p;
 		$p->of(false);
@@ -437,7 +437,7 @@ class MediaManagerAPI {
 	/**
 	 * Dupliziert Medien-Page inkl. Dateien (Clone, nicht rekursiv).
 	 */
-	public function duplicateMediaItem(int $id): Page {
+	public function ___duplicateMediaItem(int $id): Page {
 		$p = $this->getMediaItem($id);
 		if(!$p->id) return $this->wire->pages->newNullPage();
 		$parent = $this->wire->pages->get($this->getRootPageId());
@@ -457,7 +457,7 @@ class MediaManagerAPI {
 	 *
 	 * @return bool True bei Erfolg
 	 */
-	public function replacePrimaryFile(Page $item, string $tmpPath, string $originalName): bool {
+	public function ___replacePrimaryFile(Page $item, string $tmpPath, string $originalName): bool {
 		if(!$item->id) return false;
 		if($tmpPath === '' || !is_uploaded_file($tmpPath)) return false;
 
@@ -501,14 +501,14 @@ class MediaManagerAPI {
 	}
 
 	/** Medien-Item und zugehörige Dateien löschen. */
-	public function deleteMedia(int $id): bool {
+	public function ___deleteMedia(int $id): bool {
 		$p = $this->getMediaItem($id);
 		if($p->id) return $this->wire->pages->delete($p, true);
 		return false;
 	}
 
 	/** Legt Felder, Templates und Root-Page an (Installation / Upgrade-Hook). */
-	public function install(): void {
+	public function ___install(): void {
 		$this->_installFelder();
 		$this->_installFieldgroups();
 		$this->_installTemplates();
@@ -664,7 +664,7 @@ class MediaManagerAPI {
 	/**
 	 * Neue Kategorie unter der Medien-Root (oder unter $parentId).
 	 */
-	public function createKategorie(string $titel, int $parentId = 0): Page {
+	public function ___createKategorie(string $titel, int $parentId = 0): Page {
 		$sanitizer = $this->wire->sanitizer;
 		$titel     = $sanitizer->text($titel);
 		if($titel === '') return $this->wire->pages->newNullPage();
@@ -691,7 +691,7 @@ class MediaManagerAPI {
 	/**
 	 * Kategorie löschen, nur wenn keine Medien-Items sie nutzen.
 	 */
-	public function deleteKategorie(int $id): bool {
+	public function ___deleteKategorie(int $id): bool {
 		$p = $this->wire->pages->get((int) $id);
 		if(!$p->id || $p->template->name !== self::KATEGORIE_TEMPLATE) return false;
 
@@ -709,7 +709,7 @@ class MediaManagerAPI {
 	 * nicht mit veralteter `rootPageID` o. Ä. arbeitet. Vollständiges Entfernen von Inhalten
 	 * bleibt manuell bzw. über separate Wartung (siehe README.md).
 	 */
-	public function uninstall(): void {
+	public function ___uninstall(): void {
 		$this->wire->modules->saveModuleConfigData('bsProcessMedienManager', []);
 	}
-}
+}

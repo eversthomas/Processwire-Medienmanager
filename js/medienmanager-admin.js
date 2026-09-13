@@ -289,10 +289,12 @@
 			titleSecondary = '<span class="mm-grid-title-secondary uk-text-meta">' + escapeHtml(titel) + '</span>';
 		}
 		var metaBits = [];
-		if (data.dimensions) metaBits.push(data.dimensions);
-		if (data.filesizeStr) metaBits.push(data.filesizeStr);
-		metaBits.push(typ);
-		var metaLine = '<span class="mm-grid-meta uk-text-meta">' + escapeHtml(metaBits.join(' · ')) + '</span>';
+		if (data.dimensions) metaBits.push(escapeHtml(data.dimensions));
+		if (data.filesizeStr) metaBits.push(escapeHtml(data.filesizeStr));
+		var badgeClass = 'mm-badge-' + escapeHtml(typ.toLowerCase());
+		var typBadge = '<span class="mm-type-badge ' + badgeClass + '">' + escapeHtml(typ.toUpperCase()) + '</span>';
+		var specsHtml = metaBits.length ? '<span class="mm-grid-specs">' + metaBits.join(' · ') + '</span>' : '';
+		var metaLine = '<div class="mm-grid-meta uk-text-meta">' + typBadge + specsHtml + '</div>';
 
 		var showImgEdit = data.hasImage || typ === 'bild';
 		var thumbInner = data.thumb
@@ -562,6 +564,11 @@
 		if (isNaN(total)) total = 0;
 		var n = getSelectedBulkIds().length;
 		el.textContent = n + ' von ' + total + ' ausgewählt';
+		if (n > 0) {
+			bulk.classList.add('mm-has-selection');
+		} else {
+			bulk.classList.remove('mm-has-selection');
+		}
 	}
 
 	function copyUrlToClipboard(url) {
@@ -589,6 +596,14 @@
 
 		document.addEventListener('change', function(e) {
 			if (e.target && e.target.classList && e.target.classList.contains('mm-bulk-cb') && e.target.closest('#mm-grid, #mm-list-view')) {
+				var itemWrap = e.target.closest('.mm-grid-item, .mm-list-row');
+				if (itemWrap) {
+					if (e.target.checked) {
+						itemWrap.classList.add('mm-selected');
+					} else {
+						itemWrap.classList.remove('mm-selected');
+					}
+				}
 				updateBulkCount();
 			}
 		});
@@ -600,6 +615,11 @@
 				if (scope) {
 					scope.querySelectorAll('.mm-bulk-cb').forEach(function(cb) {
 						cb.checked = on;
+						var itemWrap = cb.closest('.mm-grid-item, .mm-list-row');
+						if (itemWrap) {
+							if (on) itemWrap.classList.add('mm-selected');
+							else itemWrap.classList.remove('mm-selected');
+						}
 					});
 				}
 				updateBulkCount();
@@ -627,9 +647,7 @@
 						});
 						if (selAll) selAll.checked = false;
 						updateBulkCount();
-						if (window.ProcessWire && ProcessWire.notices) {
-							ProcessWire.notices.add('Gelöscht: ' + (resp.deleted || ids.length));
-						}
+						showAdminSuccess('Gelöscht: ' + (resp.deleted || ids.length) + ' Medien.');
 					} else {
 						showAdminError('Massen-Löschen fehlgeschlagen');
 					}
@@ -688,9 +706,7 @@
 				if (csrf) fd.append(csrf.name, csrf.value);
 				ajaxPost(ajaxUrl, fd, function(resp) {
 					if (resp.status === 'ok') {
-						if (window.ProcessWire && ProcessWire.notices) {
-							ProcessWire.notices.add('Kategorie aktualisiert (' + (resp.updated || ids.length) + ').');
-						}
+						showAdminSuccess('Kategorie für ' + (resp.updated || ids.length) + ' Medien aktualisiert.');
 					} else {
 						showAdminError(resp.message || 'Kategorie setzen fehlgeschlagen');
 					}
@@ -733,9 +749,7 @@
 						return;
 					}
 					prependGridItem(resp);
-					if (window.ProcessWire && ProcessWire.notices) {
-						ProcessWire.notices.add('Duplikat angelegt.');
-					}
+					showAdminSuccess('Duplikat angelegt.');
 				} else {
 					showAdminError(resp.message || 'Duplizieren fehlgeschlagen');
 				}
