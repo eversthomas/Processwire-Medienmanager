@@ -109,6 +109,23 @@ class MediaManagerAPI extends Wire {
 			$selector .= ', ' . implode('|', $suchFelder) . '%=' . $q;
 		}
 
+		if(!empty($filters['usage'])) {
+			$usage = strtolower((string) $filters['usage']);
+			if($usage === 'unused') {
+				$usedIds = $this->getAllUsedMediaIds();
+				if(!empty($usedIds)) {
+					$selector .= ', id!=' . implode('|', $usedIds);
+				}
+			} elseif($usage === 'used') {
+				$usedIds = $this->getAllUsedMediaIds();
+				if(!empty($usedIds)) {
+					$selector .= ', id=' . implode('|', $usedIds);
+				} else {
+					$selector .= ', id=0';
+				}
+			}
+		}
+
 		$selector .= ", start=$start, limit=$limit";
 		return $this->wire->pages->find($selector);
 	}
@@ -163,14 +180,22 @@ class MediaManagerAPI extends Wire {
 				$safeBasename = $sanitizer->filename($originalName, true);
 			}
 			$ext = strtolower(pathinfo($safeBasename !== '' ? $safeBasename : $uploadedFile, PATHINFO_EXTENSION));
-			$isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+			$isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], true);
+
+			if($ext === 'svg' && !$this->sanitizeSvgFile($uploadedFile)) {
+				$this->wire->log->error("MM Upload: SVG-Sanitization fehlgeschlagen für $originalName");
+				$this->wire->pages->delete($p, true);
+				return $this->wire->pages->newNullPage();
+			}
 
 			if($isImage && $p->hasField('mm_bild')) {
 				$p->mm_bild->add($uploadedFile);
 				if($safeBasename !== '') $p->mm_bild->last()->rename($safeBasename);
 				$p->save();
-				$this->createVariants($p);
-				$this->ensureWebpAfterVariants($p);
+				if($ext !== 'svg') {
+					$this->createVariants($p);
+					$this->ensureWebpAfterVariants($p);
+				}
 			} else {
 				$p->mm_datei->add($uploadedFile);
 				if($safeBasename !== '') $p->mm_datei->last()->rename($safeBasename);
@@ -224,6 +249,7 @@ class MediaManagerAPI extends Wire {
 				$this->wire->log->save('medienmanager', 'createVariants: kein Pageimage, Klasse=' . ($img ? get_class($img) : 'null'));
 				return;
 			}
+			if(strtolower((string) $img->ext) === 'svg') return;
 			if(!is_file($img->filename())) {
 				$this->wire->log->error('MM Variants: Original fehlt: ' . $img->filename());
 				return;
@@ -314,6 +340,7 @@ class MediaManagerAPI extends Wire {
 	public function getThumbnailUrl(Page $item, int $width = self::SLOT_GRID_W, int $height = self::SLOT_GRID_H): string {
 		$img = $this->getPrimaryPageimage($item);
 		if(!$img instanceof Pageimage) return '';
+		if(strtolower((string) $img->ext) === 'svg') return $img->url;
 		return $img->size($width, $height, $this->thumbnailSizeOptions())->url;
 	}
 
@@ -466,14 +493,17 @@ class MediaManagerAPI extends Wire {
 		$item->of(false);
 		$img = $this->getPrimaryPageimage($item);
 		if($img instanceof Pageimage) {
-			$allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+			$allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
 			if(!in_array($ext, $allowed, true)) return false;
 			$oldExt = strtolower(pathinfo($img->filename(), PATHINFO_EXTENSION));
 			if(!$this->fileExtensionMatches($ext, $oldExt)) return false;
+			if($ext === 'svg' && !$this->sanitizeSvgFile($tmpPath)) return false;
 			if(!$img->replaceFile($tmpPath, true)) return false;
 			$item->save();
-			$this->createVariants($item);
-			$this->ensureWebpAfterVariants($item);
+			if($ext !== 'svg') {
+				$this->createVariants($item);
+				$this->ensureWebpAfterVariants($item);
+			}
 			return true;
 		}
 		$file = $this->getPrimaryNonImageFile($item);
@@ -521,7 +551,7 @@ class MediaManagerAPI extends Wire {
 		$pw = $this->wire;
 		
 		$fMap = [
-			'mm_bild' => ['type' => 'FieldtypeImage', 'label' => 'Bild', 'ext' => 'jpg jpeg png gif webp'],
+			'mm_bild' => ['type' => 'FieldtypeImage', 'label' => 'Bild', 'ext' => 'jpg jpeg png gif webp svg'],
 			'mm_datei' => ['type' => 'FieldtypeFile', 'label' => 'Datei', 'ext' => 'pdf mp4 mov'],
 			'mm_titel' => ['type' => 'FieldtypeText', 'label' => 'Titel'],
 			'mm_alt' => ['type' => 'FieldtypeText', 'label' => 'Alternativtext'],
@@ -533,7 +563,8 @@ class MediaManagerAPI extends Wire {
 		];
 
 		foreach($fMap as $name => $cfg) {
-			if(!$fields->get($name)) {
+			$f = $fields->get($name);
+			if(!$f) {
 				$f = new Field();
 				$f->type = $pw->modules->get($cfg['type']);
 				$f->name = $name;
@@ -542,7 +573,23 @@ class MediaManagerAPI extends Wire {
 				if($name === 'mm_bild') $f->maxFiles = 1;
 				$f->save();
 				if($name === 'mm_typ') $pw->modules->get('SelectableOptionManager')->setOptionsString($f, "1=bild\n2=video\n3=pdf");
+			} else {
+				if($name === 'mm_bild' && strpos((string) $f->extensions, 'svg') === false) {
+					$f->extensions = trim($f->extensions . ' svg');
+					$f->save();
+				}
 			}
+		}
+	}
+
+	/**
+	 * Stellt sicher, dass das Feld mm_bild auch in bestehenden Installationen die Erweiterung 'svg' besitzt.
+	 */
+	public function ensureSvgExtension(): void {
+		$f = $this->wire->fields->get('mm_bild');
+		if($f && strpos((string) $f->extensions, 'svg') === false) {
+			$f->extensions = trim($f->extensions . ' svg');
+			$f->save();
 		}
 	}
 
@@ -714,6 +761,312 @@ class MediaManagerAPI extends Wire {
 	}
 
 	// -----------------------------------------------------------------------
+	// Verwendungsnachweis & Asset-Intelligence (Phase 11)
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Liefert alle Seiten, die das angegebene Medien-Item referenzieren.
+	 * Durchsucht alle Felder vom Typ FieldtypeMedienManager sowie relevante FieldtypePage-Felder.
+	 *
+	 * @param int|Page $item Page oder ID des medienmanager-item
+	 * @return PageArray
+	 */
+	public function ___getReferencingPages($item): PageArray {
+		$id = $item instanceof Page ? (int) $item->id : (int) $item;
+		$out = $this->wire->pages->newPageArray();
+		if($id <= 0) return $out;
+
+		$pageIds = [];
+
+		// 1. Alle FieldtypeMedienManager Felder durchsuchen
+		$fields = $this->wire->fields->find('type=FieldtypeMedienManager');
+		foreach($fields as $field) {
+			$table = $this->wire->database->escapeTable("field_{$field->name}");
+			try {
+				$stmt = $this->wire->database->prepare("SELECT DISTINCT pages_id FROM `{$table}` WHERE data = :id");
+				$stmt->execute([':id' => $id]);
+				while($row = $stmt->fetch(\PDO::FETCH_NUM)) {
+					$pageIds[] = (int) $row[0];
+				}
+			} catch(\Throwable $e) {}
+		}
+
+		// 2. PageReference-Felder prüfen, die medienmanager-item nutzen
+		$tpl = $this->wire->templates->get(self::ITEM_TEMPLATE);
+		if($tpl && $tpl->id) {
+			$pageFields = $this->wire->fields->find('type=FieldtypePage');
+			foreach($pageFields as $field) {
+				if((int) $field->get('template_id') === (int) $tpl->id || (is_array($field->get('template_ids')) && in_array($tpl->id, $field->get('template_ids')))) {
+					$table = $this->wire->database->escapeTable("field_{$field->name}");
+					try {
+						$stmt = $this->wire->database->prepare("SELECT DISTINCT pages_id FROM `{$table}` WHERE data = :id");
+						$stmt->execute([':id' => $id]);
+						while($row = $stmt->fetch(\PDO::FETCH_NUM)) {
+							$pageIds[] = (int) $row[0];
+						}
+					} catch(\Throwable $e) {}
+				}
+			}
+		}
+
+		$pageIds = array_unique(array_filter($pageIds, fn($pid) => $pid > 0));
+		if(!empty($pageIds)) {
+			// Nur aktive Seiten laden (nicht im Papierkorb)
+			$out = $this->wire->pages->find("id=" . implode('|', $pageIds) . ", status<" . Page::statusTrash . ", include=all");
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Liefert alle eindeutigen Medien-IDs zurück, die aktuell auf mindestens einer aktiven Seite referenziert sind.
+	 *
+	 * @return int[]
+	 */
+	public function ___getAllUsedMediaIds(): array {
+		$mediaIds = [];
+		$fields = $this->wire->fields->find('type=FieldtypeMedienManager');
+		foreach($fields as $field) {
+			$table = $this->wire->database->escapeTable("field_{$field->name}");
+			try {
+				$sql = "SELECT DISTINCT f.data FROM `{$table}` AS f 
+				        JOIN pages AS p ON p.id = f.pages_id 
+				        WHERE (p.status & " . Page::statusTrash . ") = 0";
+				$stmt = $this->wire->database->query($sql);
+				while($row = $stmt->fetch(\PDO::FETCH_NUM)) {
+					$mid = (int) $row[0];
+					if($mid > 0) $mediaIds[$mid] = $mid;
+				}
+			} catch(\Throwable $e) {}
+		}
+		return array_values($mediaIds);
+	}
+
+	/**
+	 * Liefert ein assoziatives Array [media_id => anzahl_verwendungen] für alle Medien.
+	 *
+	 * @return array<int, int>
+	 */
+	public function ___getAllMediaUsageCounts(): array {
+		$counts = [];
+		$fields = $this->wire->fields->find('type=FieldtypeMedienManager');
+		foreach($fields as $field) {
+			$table = $this->wire->database->escapeTable("field_{$field->name}");
+			try {
+				$sql = "SELECT f.data, COUNT(DISTINCT f.pages_id) AS cnt FROM `{$table}` AS f 
+				        JOIN pages AS p ON p.id = f.pages_id 
+				        WHERE (p.status & " . Page::statusTrash . ") = 0 
+				        GROUP BY f.data";
+				$stmt = $this->wire->database->query($sql);
+				while($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+					$mid = (int) $row['data'];
+					$cnt = (int) $row['cnt'];
+					$counts[$mid] = ($counts[$mid] ?? 0) + $cnt;
+				}
+			} catch(\Throwable $e) {}
+		}
+		return $counts;
+	}
+
+	/**
+	 * Prüft schnell, ob ein Medien-Item auf mindestens einer aktiven Seite in Benutzung ist.
+	 *
+	 * @param int|Page $item
+	 * @return bool
+	 */
+	public function isMediaInUse($item): bool {
+		$pages = $this->getReferencingPages($item);
+		return $pages->count() > 0;
+	}
+
+	// -----------------------------------------------------------------------
+	// Focal Point & Bildbearbeitung (Phase 11.3)
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Liest den Fokuspunkt für das primäre Pageimage aus.
+	 *
+	 * @param Page $item
+	 * @return array{top: float, left: float, default: bool, str: string}
+	 */
+	public function getMediaFocus(Page $item): array {
+		$img = $this->getPrimaryPageimage($item);
+		if(!$img instanceof Pageimage) {
+			return ['top' => 50.0, 'left' => 50.0, 'default' => true, 'str' => '50 50'];
+		}
+		$f = $img->focus();
+		return [
+			'top'     => (float) ($f['top'] ?? 50.0),
+			'left'    => (float) ($f['left'] ?? 50.0),
+			'default' => (bool) ($f['default'] ?? true),
+			'str'     => (string) ($f['str'] ?? '50 50'),
+		];
+	}
+
+	/**
+	 * Setzt den Fokuspunkt auf dem primären Pageimage, speichert die Page und
+	 * löscht vorhandene Bildvariationen, damit Zuschnitte sofort neu berechnet werden.
+	 *
+	 * @param Page $item
+	 * @param float $top 0 bis 100%
+	 * @param float $left 0 bis 100%
+	 * @return bool
+	 */
+	public function ___setMediaFocus(Page $item, float $top, float $left): bool {
+		if(!$item->id) return false;
+		$item->of(false);
+		$img = $this->getPrimaryPageimage($item);
+		if(!$img instanceof Pageimage) return false;
+
+		$top  = max(0.0, min(100.0, round($top, 1)));
+		$left = max(0.0, min(100.0, round($left, 1)));
+
+		$img->focus($top, $left);
+		$item->save();
+		$img->removeVariations();
+		return true;
+	}
+
+	// -----------------------------------------------------------------------
+	// Sichere SVG-Unterstützung (Phase 11.4)
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Bereinigt eine SVG-Datei gegen Stored XSS, XXE und bösartige Skripte/Tags.
+	 *
+	 * @param string $filePath Vollständiger Pfad zur SVG-Datei
+	 * @return bool True bei erfolgreicher Bereinigung, False bei Erkennung irreversibler Bedrohungen oder defektem XML
+	 */
+	public function sanitizeSvgFile(string $filePath): bool {
+		if(!is_file($filePath) || !is_readable($filePath) || !is_writable($filePath)) {
+			return false;
+		}
+
+		$content = file_get_contents($filePath);
+		if($content === false || trim($content) === '') {
+			return false;
+		}
+
+		// 1. Verhindere XXE: DOCTYPE mit ENTITY Deklarationen oder SYSTEM/PUBLIC URLs komplett verbieten
+		if(preg_match('/<!ENTITY/i', $content) || preg_match('/<!DOCTYPE[^>]*\[/i', $content) || preg_match('/SYSTEM\s+["\']/i', $content)) {
+			$this->wire->log->error('MM SVG Sanitizer: XXE Attempt detected in ' . basename($filePath));
+			return false;
+		}
+
+		// 2. Parsen mit DOMDocument unter striktem Ausschluss externer Netzwerkanfragen
+		$dom = new \DOMDocument();
+		$dom->formatOutput = false;
+		$dom->preserveWhiteSpace = true;
+
+		$prevEntityLoader = null;
+		if(\PHP_VERSION_ID < 80000 && function_exists('libxml_disable_entity_loader')) {
+			$prevEntityLoader = libxml_disable_entity_loader(true);
+		}
+
+		$prevInternalErrors = libxml_use_internal_errors(true);
+		libxml_clear_errors();
+
+		$loaded = $dom->loadXML($content, LIBXML_NONET);
+
+		if($prevEntityLoader !== null && function_exists('libxml_disable_entity_loader')) {
+			libxml_disable_entity_loader($prevEntityLoader);
+		}
+
+		libxml_use_internal_errors($prevInternalErrors);
+
+		if(!$loaded) {
+			$this->wire->log->error('MM SVG Sanitizer: Ungültiges XML in ' . basename($filePath));
+			return false;
+		}
+
+		// Root-Element prüfen
+		if(!$dom->documentElement || strtolower($dom->documentElement->nodeName) !== 'svg') {
+			$this->wire->log->error('MM SVG Sanitizer: Root-Element ist nicht <svg> in ' . basename($filePath));
+			return false;
+		}
+
+		// 3. Unerlaubte Tags entfernen
+		$disallowedTags = [
+			'script', 'foreignobject', 'iframe', 'object', 'embed', 'applet',
+			'meta', 'link', 'form', 'input', 'button', 'select', 'textarea',
+			'audio', 'video'
+		];
+
+		$removeNodes = [];
+		$xpath = new \DOMXPath($dom);
+		$allElements = $xpath->query('//*');
+		if($allElements !== false) {
+			foreach($allElements as $node) {
+				if(!($node instanceof \DOMElement)) continue;
+
+				$tagName = strtolower($node->localName ?: $node->nodeName);
+				if(in_array($tagName, $disallowedTags, true)) {
+					$removeNodes[] = $node;
+					continue;
+				}
+
+				if($node->hasAttributes()) {
+					$removeAttrs = [];
+					foreach($node->attributes as $attr) {
+						$attrName = strtolower($attr->nodeName);
+						$attrValue = trim((string) $attr->nodeValue);
+
+						// on* Event-Handler entfernen
+						if(str_starts_with($attrName, 'on') || preg_match('/^on[a-z]/i', $attrName)) {
+							$removeAttrs[] = $attr->nodeName;
+							continue;
+						}
+
+						// href, xlink:href, src auf bösartige Protokolle prüfen
+						if(in_array($attrName, ['href', 'xlink:href', 'src'], true) || str_ends_with($attrName, ':href')) {
+							$cleanVal = preg_replace('/[\x00-\x20\s]+/', '', strtolower($attrValue));
+							if(
+								str_starts_with($cleanVal, 'javascript:') ||
+								str_starts_with($cleanVal, 'vbscript:') ||
+								(str_starts_with($cleanVal, 'data:') && !str_starts_with($cleanVal, 'data:image/'))
+							) {
+								$removeAttrs[] = $attr->nodeName;
+								continue;
+							}
+						}
+
+						// style-Attribut säubern
+						if($attrName === 'style') {
+							$cleanStyle = preg_replace('/[\x00-\x20\s]+/', '', strtolower($attrValue));
+							if(
+								str_contains($cleanStyle, 'expression(') ||
+								str_contains($cleanStyle, 'javascript:') ||
+								str_contains($cleanStyle, 'behavior:') ||
+								str_contains($cleanStyle, '@import')
+							) {
+								$removeAttrs[] = $attr->nodeName;
+								continue;
+							}
+						}
+					}
+
+					foreach($removeAttrs as $aName) {
+						$node->removeAttribute($aName);
+					}
+				}
+			}
+		}
+
+		foreach($removeNodes as $node) {
+			if($node->parentNode) {
+				$node->parentNode->removeChild($node);
+			}
+		}
+
+		$cleanXml = $dom->saveXML();
+		if($cleanXml === false || trim($cleanXml) === '') {
+			return false;
+		}
+
+		return (bool) file_put_contents($filePath, $cleanXml);
+	}
+
+	// -----------------------------------------------------------------------
 	// Frontend-Rendering & Responsive Picture Pipeline (Phase 10)
 	// -----------------------------------------------------------------------
 
@@ -806,6 +1159,21 @@ class MediaManagerAPI extends Wire {
 		}
 		$hasCaption = $captionText !== '';
 
+		// SVG-Sonderbehandlung: Vektorgrafiken skalieren verlustfrei und brauchen keine Raster-Breakpoints
+		if(strtolower((string) $img->ext) === 'svg') {
+			$wAttr = $targetW > 0 ? " width='{$targetW}'" : '';
+			$hAttr = $targetH > 0 ? " height='{$targetH}'" : '';
+			$classAttr = isset($options['class']) ? ' class="' . htmlspecialchars((string) $options['class'], ENT_QUOTES, 'UTF-8') . '"' : '';
+			$imgHtml = "<img src='" . htmlspecialchars($img->url, ENT_QUOTES, 'UTF-8') . "' alt='{$altEsc}'{$wAttr}{$hAttr}{$classAttr} loading='{$loading}'>";
+			if($hasCaption) {
+				$figClass = isset($options['figureClass']) ? ' class="' . htmlspecialchars((string) $options['figureClass'], ENT_QUOTES, 'UTF-8') . '"' : '';
+				$capClass = isset($options['captionClass']) ? ' class="' . htmlspecialchars((string) $options['captionClass'], ENT_QUOTES, 'UTF-8') . '"' : '';
+				$capEsc   = htmlspecialchars($captionText, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+				return "<figure{$figClass} role=\"group\">\n\t{$imgHtml}\n\t<figcaption{$capClass}>{$capEsc}</figcaption>\n</figure>";
+			}
+			return $imgHtml;
+		}
+
 		// Hauptbild (Fallback <img>)
 		$mainSizerOptions = [
 			'cropping'  => $crop,
@@ -874,8 +1242,14 @@ class MediaManagerAPI extends Wire {
 			}
 		}
 
+		$focusStyle = '';
+		if(!empty($options['focus_css'])) {
+			$foc = $img->focus();
+			$focusStyle = ' style="object-position: ' . $foc['left'] . '% ' . $foc['top'] . '%;"';
+		}
+
 		$mainImgUrl = $mainThumb->url;
-		$imgHtml = "<img src=\"{$mainImgUrl}\" width=\"{$imgW}\" height=\"{$imgH}\" alt=\"{$altEsc}\" loading=\"{$loading}\" decoding=\"{$decoding}\"{$imgClass}{$extraAttrs}>";
+		$imgHtml = "<img src=\"{$mainImgUrl}\" width=\"{$imgW}\" height=\"{$imgH}\" alt=\"{$altEsc}\" loading=\"{$loading}\" decoding=\"{$decoding}\"{$imgClass}{$focusStyle}{$extraAttrs}>";
 
 		if(!$usePic || (empty($srcsetWebp) && count($srcsetDefault) <= 1)) {
 			$out = $imgHtml;
@@ -1149,6 +1523,55 @@ class MediaManagerAPI extends Wire {
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
 			$api = new self($wire);
 			$event->return = $api->getPrimaryFilesizeStr($page);
+		});
+
+		$wire->addHookProperty('Page::focus', function(HookEvent $event) use ($wire) {
+			$page = $event->object;
+			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
+			$api = new self($wire);
+			$event->return = $api->getMediaFocus($page);
+		});
+
+		$wire->addHookProperty('Page::isSvg', function(HookEvent $event) use ($wire) {
+			$page = $event->object;
+			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
+			$api = new self($wire);
+			$img = $api->getPrimaryPageimage($page);
+			$event->return = ($img instanceof Pageimage && strtolower((string) $img->ext) === 'svg');
+		});
+
+		$wire->addHookProperty('Page::usedOnPages', function(HookEvent $event) use ($wire) {
+			$page = $event->object;
+			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
+			$api = new self($wire);
+			$event->return = $api->getReferencingPages($page);
+		});
+
+		$wire->addHookProperty('Page::usageCount', function(HookEvent $event) use ($wire) {
+			$page = $event->object;
+			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
+			$api = new self($wire);
+			$event->return = $api->getReferencingPages($page)->count();
+		});
+
+		$wire->addHookMethod('Page::focalUrl', function(HookEvent $event) use ($wire) {
+			$page = $event->object;
+			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
+			$api = new self($wire);
+			$img = $api->getPrimaryPageimage($page);
+			if(!$img instanceof Pageimage) {
+				$event->return = '';
+				return;
+			}
+			if(strtolower((string) $img->ext) === 'svg') {
+				$event->return = $img->url;
+				return;
+			}
+			$w = (int) ($event->arguments(0) ?: 800);
+			$h = (int) ($event->arguments(1) ?: 600);
+			$opts = (array) ($event->arguments(2) ?: []);
+			$opts['cropping'] = true;
+			$event->return = $img->size($w, $h, $opts)->url;
 		});
 	}
 }

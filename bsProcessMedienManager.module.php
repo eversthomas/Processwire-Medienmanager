@@ -38,7 +38,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 	public static function getModuleInfo(): array {
 		return [
 			'title'       => 'Medien Manager',
-			'version'     => '2.2.0',
+			'version'     => '2.3.0',
 			'summary'     => 'Zentrales Medienmanagement für Bilder, Videos und PDFs.',
 			'author'      => 'bsProcessMedienManager',
 			'icon'        => 'photo',
@@ -167,6 +167,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 			'typ'          => $input->get('typ'),
 			'kategorie_id' => $input->get('kategorie_id'),
 			'q'            => $input->get('q'),
+			'usage'        => $input->get('usage'),
 		];
 
 		$items      = $this->api()->findMedia($filters, $start, $this->limit);
@@ -201,6 +202,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 			'bulk-set-kategorie',
 			'bulk-webp',
 			'duplicate-media',
+			'save-focus',
 		];
 		if(in_array($action, $writingActions)) {
 			$this->_validateCsrf();
@@ -223,6 +225,8 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 			case 'kategorien':       return $this->_ajaxKategorien();
 			case 'save-kategorie':   return $this->_ajaxSaveKategorie();
 			case 'delete-kategorie': return $this->_ajaxDeleteKategorie();
+			case 'check-usage':      return $this->_ajaxCheckUsage();
+			case 'save-focus':       return $this->_ajaxSaveFocus();
 			default:
 				$this->log("Unbekannte AJAX-Aktion: $action", true);
 				http_response_code(400);
@@ -274,7 +278,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 			return json_encode(['status' => 'error', 'message' => $msg, 'results' => []]);
 		}
 
-		$allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'pdf'];
+		$allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'pdf', 'svg'];
 		$results = [];
 		$okCount = 0;
 
@@ -542,6 +546,12 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 		// Wie bei ___execute(): nicht nur $config->ajax — XHR setzt oft nur den Header.
 		$isAjax = $this->wire->config->ajax || !empty($_SERVER['HTTP_X_REQUESTED_WITH']);
 
+		if($isAjax && $input->post('action') === 'save-focus') {
+			$this->_validateCsrf();
+			header('Content-Type: application/json; charset=utf-8');
+			return $this->_ajaxSaveFocus();
+		}
+
 		if($isAjax && $input->post('action') === 'rotate') {
 			$this->_validateCsrf();
 			header('Content-Type: application/json; charset=utf-8');
@@ -765,7 +775,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 
 	protected function _extToTyp(string $ext): string {
 		$map = [
-			'jpg' => 'bild', 'jpeg' => 'bild', 'png' => 'bild', 'gif' => 'bild', 'webp' => 'bild',
+			'jpg' => 'bild', 'jpeg' => 'bild', 'png' => 'bild', 'gif' => 'bild', 'webp' => 'bild', 'svg' => 'bild',
 			'mp4' => 'video', 'mov' => 'video',
 			'pdf' => 'pdf',
 		];

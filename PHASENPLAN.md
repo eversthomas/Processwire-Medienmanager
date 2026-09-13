@@ -214,10 +214,10 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 | # | Schritt | Beschreibung | Nach |
 |---|---------|--------------|-----|
-| 11.1 | `[ ]` | **Verwendungsnachweis („Used on pages“):** Rückwärtige Referenzanzeige im Detail/Grid („Verwendet auf: Seite A, Seite B“); Warnung vor dem Löschen genutzter Medien. | Phase 8 |
-| 11.2 | `[ ]` | **„Unbenutzte Medien“-Filter:** Schnelles Auffinden und Bereinigen verwaister Assets zur Speicherplatzoptimierung. | 11.1 |
-| 11.3 | `[ ]` | **Focal Point (Intelligenter Crop):** Klick-Fadenkreuz auf das Hauptmotiv im Bildeditor; ProcessWire-ImageSizer croppt responsiv auf diesen Fokuspunkt. | Phase 3 |
-| 11.4 | `[ ]` | **Sichere SVG-Unterstützung:** Upload und Ausgabe von `.svg` mit integriertem XML/Script-Sanitizer gegen Stored XSS. | Phase 6 |
+| 11.1 | `[x]` | **Verwendungsnachweis („Used on pages“):** Rückwärtige Referenzanzeige im Detail/Grid („Verwendet auf: Seite A, Seite B“); Warnung vor dem Löschen genutzter Medien. | Phase 8 |
+| 11.2 | `[x]` | **„Unbenutzte Medien“-Filter:** Schnelles Auffinden und Bereinigen verwaister Assets zur Speicherplatzoptimierung. | 11.1 |
+| 11.3 | `[x]` | **Focal Point (Intelligenter Crop):** Klick-Fadenkreuz auf das Hauptmotiv im Bildeditor; ProcessWire-ImageSizer croppt responsiv auf diesen Fokuspunkt. | Phase 3 |
+| 11.4 | `[x]` | **Sichere SVG-Unterstützung:** Upload und Ausgabe von `.svg` mit integriertem XML/Script-Sanitizer gegen Stored XSS. | Phase 6 |
 
 ---
 
@@ -243,6 +243,7 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 | 2026-09-13 | **Phase 9** im Code umgesetzt: Modernes Visual Styling (weiche Schatten, Hover-Lift, Frosted-Glass-Overlays, Pill-Badges für Medientypen, animierte Segment-Controls, Dropzone-Polish, Inputfield-Chips mit Checkmark-Animation) und Toast-Erfolgsmeldungen beim Kategorie-Setzen. |
 | 2026-09-13 | **Phase 9** getestet und bestätigt. |
 | 2026-09-13 | **Phase 10** umgesetzt: Frontend-Mini-API (`$media->render()`, `$page->feld->render()`), responsive `<picture>`-Pipeline mit WebP-Generierung, Zero-CLS, Accessibility/Caption und Helper-Properties. Modulversion auf **2.2.0** erhöht. |
+| 2026-09-13 | **Phase 11** umgesetzt: Asset-Intelligence & Redaktionskomfort (Verwendungsnachweis mit Rückwärts-Referenzsuche und Löschschutz bei referenzierten Medien, Filter für unbenutzte Medien, interaktiver Focal Point Editor mit nativer ProcessWire `Pageimage::focus()`-Speicherung und CSS-Ausrichtung, sicherer SVG-Upload mit XML/Script-Sanitizer gegen XSS/XXE). Modulversion auf **2.3.0** erhöht. |
 
 ---
 

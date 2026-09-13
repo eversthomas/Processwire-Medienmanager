@@ -380,6 +380,39 @@
 		if (csrf) formData.append(csrf.name, csrf.value);
 
 		ajaxPost(ajaxUrl, formData, function(resp) {
+			if (resp.status === 'warning' && resp.in_use) {
+				var msg = 'Achtung: Dieses Medium wird noch auf ' + resp.count + ' Seite(n) verwendet:';
+				if (resp.pages && resp.pages.length) {
+					resp.pages.forEach(function(p) {
+						msg += '\n • ' + p.title;
+					});
+				}
+				msg += '\n\nWenn du es löschst, entstehen dort leere Bildfelder.\nMöchtest du es wirklich unwiderruflich löschen?';
+				if (confirm(msg)) {
+					var forceData = new FormData();
+					forceData.append('action', 'delete');
+					forceData.append('id', id);
+					forceData.append('force', '1');
+					if (csrf) forceData.append(csrf.name, csrf.value);
+					ajaxPost(ajaxUrl, forceData, function(fResp) {
+						if (fResp.status === 'ok') {
+							var item = document.querySelector('.mm-grid-item[data-id="' + id + '"], tr.mm-list-row[data-id="' + id + '"]');
+							if (item) {
+								item.style.opacity = '0';
+								setTimeout(function() { item.remove(); }, 300);
+							}
+							if (btn.classList.contains('mm-btn-delete-single')) {
+								window.location.href = '../';
+							}
+							showAdminSuccess('Medium gelöscht.');
+						} else {
+							showAdminError('Löschen fehlgeschlagen');
+						}
+					});
+				}
+				return;
+			}
+
 			if (resp.status === 'ok') {
 				var item = document.querySelector('.mm-grid-item[data-id="' + id + '"], tr.mm-list-row[data-id="' + id + '"]');
 				if (item) {
@@ -389,6 +422,7 @@
 				if (btn.classList.contains('mm-btn-delete-single')) {
 					window.location.href = '../';
 				}
+				showAdminSuccess('Medium gelöscht.');
 			} else {
 				showAdminError('Löschen fehlgeschlagen');
 			}
@@ -407,6 +441,7 @@
 			var resizeBtn = e.target.closest('.mm-resize-btn');
 			if (resizeBtn) handleResize(resizeBtn);
 		});
+		initFocalPoint();
 	}
 
 	/**
@@ -494,6 +529,106 @@
 				showAdminError(resp.message);
 			}
 		});
+	}
+
+	function initFocalPoint() {
+		var canvas   = document.getElementById('mm-canvas-wrap');
+		var img      = document.getElementById('mm-edit-img');
+		var point    = document.getElementById('mm-focal-point');
+		var saveBtn  = document.getElementById('mm-focal-save');
+		var resetBtn = document.getElementById('mm-focal-reset');
+		var xVal     = document.getElementById('mm-focal-x-val');
+		var yVal     = document.getElementById('mm-focal-y-val');
+		var topIn    = document.getElementById('mm-focal-top');
+		var leftIn   = document.getElementById('mm-focal-left');
+
+		if (!canvas || !img || !point) return;
+
+		function updateFocal(e) {
+			var rect = img.getBoundingClientRect();
+			if (rect.width <= 0 || rect.height <= 0) return;
+			var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+			var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+			var x = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+			var y = Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100));
+			x = Math.round(x * 10) / 10;
+			y = Math.round(y * 10) / 10;
+
+			point.style.left = x + '%';
+			point.style.top  = y + '%';
+			if (xVal) xVal.textContent = x + '%';
+			if (yVal) yVal.textContent = y + '%';
+			if (leftIn) leftIn.value = x;
+			if (topIn) topIn.value = y;
+		}
+
+		var dragging = false;
+
+		canvas.addEventListener('mousedown', function(e) {
+			dragging = true;
+			updateFocal(e);
+		});
+
+		window.addEventListener('mousemove', function(e) {
+			if (!dragging) return;
+			updateFocal(e);
+		});
+
+		window.addEventListener('mouseup', function() {
+			dragging = false;
+		});
+
+		canvas.addEventListener('touchstart', function(e) {
+			dragging = true;
+			updateFocal(e);
+		}, { passive: true });
+
+		window.addEventListener('touchmove', function(e) {
+			if (!dragging) return;
+			updateFocal(e);
+		}, { passive: true });
+
+		window.addEventListener('touchend', function() {
+			dragging = false;
+		});
+
+		if (resetBtn) {
+			resetBtn.addEventListener('click', function() {
+				point.style.left = '50%';
+				point.style.top  = '50%';
+				if (xVal) xVal.textContent = '50%';
+				if (yVal) yVal.textContent = '50%';
+				if (leftIn) leftIn.value = '50';
+				if (topIn) topIn.value = '50';
+			});
+		}
+
+		if (saveBtn) {
+			saveBtn.addEventListener('click', function() {
+				var id = saveBtn.dataset.id;
+				var top = topIn ? parseFloat(topIn.value) : 50;
+				var left = leftIn ? parseFloat(leftIn.value) : 50;
+				var cfg = getCfg();
+				var postUrl = getImageEditPostUrl(id) || cfg.ajaxUrl;
+				if (!postUrl) return;
+
+				var csrf = getCsrf();
+				var fd = new FormData();
+				fd.append('action', 'save-focus');
+				fd.append('id', id);
+				fd.append('top', top);
+				fd.append('left', left);
+				if (csrf) fd.append(csrf.name, csrf.value);
+
+				ajaxPost(postUrl, fd, function(resp) {
+					if (resp.status === 'ok') {
+						showAdminSuccess('Fokuspunkt gespeichert (' + left + '% / ' + top + '%).');
+					} else {
+						showAdminError(resp.message || 'Speichern fehlgeschlagen.');
+					}
+				});
+			});
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -640,6 +775,31 @@
 				fd.append('ids', ids.join(','));
 				if (csrf) fd.append(csrf.name, csrf.value);
 				ajaxPost(ajaxUrl, fd, function(resp) {
+					if (resp.status === 'warning' && resp.in_use) {
+						var msg = 'Achtung: ' + resp.count + ' der ausgewählten Medien werden noch auf aktiven Seiten verwendet.\n\nMöchtest du sie wirklich unwiderruflich löschen?';
+						if (confirm(msg)) {
+							var fdf = new FormData();
+							fdf.append('action', 'bulk-delete');
+							fdf.append('ids', ids.join(','));
+							fdf.append('force', '1');
+							if (csrf) fdf.append(csrf.name, csrf.value);
+							ajaxPost(ajaxUrl, fdf, function(fResp) {
+								if (fResp.status === 'ok') {
+									ids.forEach(function(id) {
+										var item = document.querySelector('.mm-grid-item[data-id="' + id + '"], tr.mm-list-row[data-id="' + id + '"]');
+										if (item) item.remove();
+									});
+									if (selAll) selAll.checked = false;
+									updateBulkCount();
+									showAdminSuccess('Gelöscht: ' + (fResp.deleted || ids.length) + ' Medien.');
+								} else {
+									showAdminError('Löschen fehlgeschlagen');
+								}
+							});
+						}
+						return;
+					}
+
 					if (resp.status === 'ok') {
 						ids.forEach(function(id) {
 							var item = document.querySelector('.mm-grid-item[data-id="' + id + '"], tr.mm-list-row[data-id="' + id + '"]');

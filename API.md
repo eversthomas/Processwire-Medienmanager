@@ -153,9 +153,48 @@ Für individuelle Markup-Strukturen stehen direkte Properties auf der Medien-Pag
 | `$media->isImage` | `bool` | `true`, wenn das Medium ein Bild ist |
 | `$media->isVideo` | `bool` | `true`, wenn das Medium ein Video ist |
 | `$media->isPdf` | `bool` | `true`, wenn das Medium ein PDF ist |
+| `$media->isSvg` | `bool` | `true`, wenn das Medium ein SVG ist |
+| `$media->focus` | `array` | Focal-Point-Koordinaten `['top'=>float, 'left'=>float, 'css'=>string]` |
+| `$media->focalUrl(w, h)` | `string` | Bildvariante gecroppt zentriert auf den Focal Point |
+| `$media->usedOnPages` | `PageArray` | Alle Seiten im System, die dieses Medium referenzieren |
+| `$media->usageCount` | `int` | Anzahl der referenzierenden Seiten |
 | `$media->pageimage`| `Pageimage|null` | Natives ProcessWire `Pageimage`-Objekt für native Methoden |
 | `$media->dimensions`| `string` | Z. B. `"1920 × 1080"` |
 | `$media->filesize` | `string` | Z. B. `"2.4 MB"` |
+
+## Asset-Intelligence & Redaktionskomfort (Phase 11)
+
+### 1. Verwendungsnachweis („Used on pages“)
+Medien können im gesamten ProcessWire-System rückwärts aufgespürt werden:
+- **API-Methoden:**
+  - `$api->getReferencingPages($media)`: Liefert alle Pages (`PageArray`), die dieses Medium in einem `FieldtypeMedienManager` oder `FieldtypePage`-Feld referenzieren.
+  - `$api->getAllMediaUsageCounts()`: Gibt ein assoziatives Array `[media_id => count]` zurück.
+  - `$api->isMediaInUse($media)`: Schnellabfrage, ob das Medium aktiv eingebunden ist.
+- **Backend-Schutz:**
+  - In Grid- und Listenansicht zeigt ein Badge die Anzahl der Verwendungen (`fa-link`).
+  - Im Bearbeiten-Formular listet eine Infobox alle referenzierenden Seiten mit Direktlinks zum Admin-Editor.
+  - **Löschschutz:** Wird ein referenziertes Medium gelöscht (Einzeln oder Bulk), fordert ein Sicherheitsdialog mit Namensauflistung der betroffenen Seiten eine ausdrückliche Bestätigung an (`force=1`).
+
+### 2. „Unbenutzte Medien“-Filter
+- In der Toolbar der Medienübersicht filtert das Dropdown **„Alle Medien“ / „Nur unbenutzte“ / „Nur verwendete“** verwaiste Assets in Sekundenschnelle heraus (`usage=unused`).
+- Über die Bulk-Auswahl können unbenutzte Assets mit einem Klick bereinigt werden.
+- In der API: `$api->findMedia(['usage' => 'unused'])`.
+
+### 3. Focal Point (Intelligenter Crop)
+- **Visueller Reticle-Editor:** Im Bildbearbeitungs-Dialog (`imageedit`) kann per Klick oder Drag ein Fokuspunkt auf das Hauptmotiv gesetzt und gespeichert werden.
+- **Persistierung:** Wird über ProcessWires natives `Pageimage::focus($top, $left)` in `filedata['focus']` gespeichert.
+- **Frontend & CSS:**
+  - `$media->focus`: Liefert `['top' => float, 'left' => float, 'css' => 'X% Y%']`.
+  - `$media->focalUrl($w, $h)`: Erzeugt eine per Focal Point gecroppte Bildvariante.
+  - `$media->render(['focus_css' => true])`: Fügt `style="object-position: X% Y%"` an das `<img>` an, sodass auch CSS `object-fit: cover` das Hauptmotiv immer im Fokus behält.
+
+### 4. Sichere SVG-Unterstützung
+- Vektorgrafiken (`.svg`) werden wie reguläre Bilder hochgeladen und verwaltet.
+- **XML/Script-Sanitizer (`MediaManagerAPI::sanitizeSvgFile()`):**
+  - Blockiert und neutralisiert Stored XSS, `<script>`-Tags, Event-Handler (`onload`, `onerror`, `onclick` etc.), `javascript:`-URIs und `<foreignObject>`.
+  - Schützt vor XML External Entity (XXE) Injection und DoS (`<!ENTITY`, `SYSTEM`).
+  - Fehlgeschlagene Sanitizations werden protokolliert (`medienmanager.log`) und der Upload abgebrochen.
+- **Frontend:** `$media->render()` gibt SVGs automatisch als valides `<img>` mit Originaldimensionen aus viewBox aus (ohne GD-Resize-Fehler).
 
 ## Berechtigung
 

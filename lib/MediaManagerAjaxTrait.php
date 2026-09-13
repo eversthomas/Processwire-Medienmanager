@@ -77,10 +77,42 @@ trait MediaManagerAjaxTrait {
 	}
 
 	protected function _ajaxDelete(): string {
-		$id = (int) $this->wire->input->post('id');
-		$this->log("AJAX-Löschversuch für ID: $id");
+		$id    = (int) $this->wire->input->post('id');
+		$force = (bool) $this->wire->input->post('force');
+		$this->log("AJAX-Löschversuch für ID: $id (force=" . ($force ? '1' : '0') . ")");
 
-		$success = $id ? $this->api()->deleteMedia($id) : false;
+		if(!$id) {
+			return json_encode(['status' => 'error', 'message' => 'Ungültige ID']);
+		}
+
+		$item = $this->api()->getMediaItem($id);
+		if(!$item->id) {
+			return json_encode(['status' => 'error', 'message' => 'Medium nicht gefunden']);
+		}
+
+		// Löschschutz / Verwendungsnachweis
+		if(!$force) {
+			$pages = $this->api()->getReferencingPages($item);
+			if($pages->count() > 0) {
+				$pageList = [];
+				foreach($pages as $p) {
+					$pageList[] = [
+						'id'    => $p->id,
+						'title' => (string) ($p->title ?: $p->name),
+						'url'   => $p->editUrl(),
+					];
+				}
+				return json_encode([
+					'status'  => 'warning',
+					'in_use'  => true,
+					'count'   => $pages->count(),
+					'pages'   => $pageList,
+					'message' => sprintf('Dieses Medium wird noch auf %d aktiven Seite(n) verwendet.', $pages->count()),
+				]);
+			}
+		}
+
+		$success = $this->api()->deleteMedia($id);
 
 		if(!$success) {
 			$this->log("AJAX-Löschen fehlgeschlagen für ID: $id", true);
@@ -98,13 +130,42 @@ trait MediaManagerAjaxTrait {
 			http_response_code(400);
 			return json_encode(['status' => 'error', 'message' => 'Zu viele Einträge ausgewählt.']);
 		}
+		$force = (bool) $input->post('force');
+
+		// Löschschutz: Prüfen, ob ausgewählte Medien in Benutzung sind
+		if(!$force) {
+			$inUseItems = [];
+			foreach($ids as $id) {
+				if($id <= 0) continue;
+				$item = $this->api()->getMediaItem($id);
+				if(!$item->id) continue;
+				$pages = $this->api()->getReferencingPages($item);
+				if($pages->count() > 0) {
+					$inUseItems[] = [
+						'id'         => $id,
+						'title'      => (string) ($item->mm_titel ?: $item->title),
+						'usageCount' => $pages->count(),
+					];
+				}
+			}
+			if(!empty($inUseItems)) {
+				return json_encode([
+					'status'  => 'warning',
+					'in_use'  => true,
+					'count'   => count($inUseItems),
+					'items'   => $inUseItems,
+					'message' => sprintf('%d der ausgewählten Medien werden auf aktiven Seiten verwendet.', count($inUseItems)),
+				]);
+			}
+		}
+
 		$deleted = 0;
 		foreach($ids as $id) {
 			if($id > 0 && $this->api()->deleteMedia($id)) $deleted++;
 		}
 		return json_encode([
-			'status'  => 'ok',
-			'deleted' => $deleted,
+			'status'    => 'ok',
+			'deleted'   => $deleted,
 			'requested' => count($ids),
 		]);
 	}
@@ -243,6 +304,55 @@ trait MediaManagerAjaxTrait {
 		return json_encode([
 			'status'  => $success ? 'ok' : 'error',
 			'message' => $success ? '' : 'Kategorie enthält noch Elemente oder wurde nicht gefunden',
+		]);
+	}
+
+	protected function _ajaxCheckUsage(): string {
+		$input = $this->wire->input;
+		$id    = (int) ($input->post('id') ?: $input->get('id'));
+		if(!$id) {
+			return json_encode(['status' => 'error', 'message' => 'Ungültige ID']);
+		}
+		$item = $this->api()->getMediaItem($id);
+		if(!$item->id) {
+			return json_encode(['status' => 'error', 'message' => 'Medium nicht gefunden']);
+		}
+		$pages = $this->api()->getReferencingPages($item);
+		$pageList = [];
+		foreach($pages as $p) {
+			$pageList[] = [
+				'id'    => $p->id,
+				'title' => (string) ($p->title ?: $p->name),
+				'url'   => $p->editUrl(),
+			];
+		}
+		return json_encode([
+			'status' => 'ok',
+			'in_use' => count($pageList) > 0,
+			'count'  => count($pageList),
+			'pages'  => $pageList,
+		]);
+	}
+
+	protected function _ajaxSaveFocus(): string {
+		$input = $this->wire->input;
+		$id    = (int) $input->post('id');
+		$top   = (float) $input->post('top');
+		$left  = (float) $input->post('left');
+
+		if(!$id) {
+			return json_encode(['status' => 'error', 'message' => 'Ungültige ID']);
+		}
+		$item = $this->api()->getMediaItem($id);
+		if(!$item->id) {
+			return json_encode(['status' => 'error', 'message' => 'Medium nicht gefunden']);
+		}
+		$success = $this->api()->setMediaFocus($item, $top, $left);
+		return json_encode([
+			'status'  => $success ? 'ok' : 'error',
+			'top'     => $top,
+			'left'    => $left,
+			'message' => $success ? 'Fokuspunkt gespeichert.' : 'Fehler beim Speichern des Fokuspunkts.',
 		]);
 	}
 }

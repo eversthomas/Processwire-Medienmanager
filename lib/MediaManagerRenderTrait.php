@@ -18,6 +18,9 @@ trait MediaManagerRenderTrait {
 		if(!empty($filters['kategorie_id'])) {
 			$parts['kategorie_id'] = (int) $filters['kategorie_id'];
 		}
+		if(!empty($filters['usage'])) {
+			$parts['usage'] = $sanitizer->name((string) $filters['usage']);
+		}
 		if(!empty($filters['q'])) {
 			$parts['q'] = (string) $filters['q'];
 		}
@@ -36,6 +39,8 @@ trait MediaManagerRenderTrait {
 		$urlList = $this->_buildMedienQueryUrl($filters, $start, 'list');
 		$gridAct = $view === 'grid' ? ' uk-active' : '';
 		$listAct = $view === 'list' ? ' uk-active' : '';
+
+		$usageCounts = $this->api()->getAllMediaUsageCounts();
 
 		$out = "<div class='mm-admin-wrap'>";
 
@@ -66,6 +71,11 @@ trait MediaManagerRenderTrait {
 				<div class='mm-toolbar-right'>
 					<form class='mm-filter-form' method='get' action='./'>
 						<input type='hidden' name='view' value='" . $sanitizer->entities($view) . "'>
+						<select name='usage' class='uk-select uk-form-small mm-filter-select' onchange='this.form.submit()'>
+							<option value=''" . (empty($filters['usage']) ? ' selected' : '') . ">Alle Medien</option>
+							<option value='unused'" . (($filters['usage'] ?? '') === 'unused' ? ' selected' : '') . ">Nur unbenutzte</option>
+							<option value='used'" . (($filters['usage'] ?? '') === 'used' ? ' selected' : '') . ">Nur verwendete</option>
+						</select>
 						<select name='typ' class='uk-select uk-form-small mm-filter-select' onchange='this.form.submit()'>
 							<option value=''" . ($filters['typ'] ? '' : ' selected') . ">Alle Typen</option>
 							<option value='bild'" . ($filters['typ'] === 'bild' ? ' selected' : '') . ">Bilder</option>
@@ -103,13 +113,13 @@ trait MediaManagerRenderTrait {
 
 		if($view === 'list') {
 			$out .= "<div class='mm-list-view' id='mm-list-view'>";
-			$out .= $this->_renderListView($items, $csrfName, $csrfVal);
+			$out .= $this->_renderListView($items, $csrfName, $csrfVal, $usageCounts);
 			$out .= "</div>";
 		} else {
 			$out .= "<div class='mm-grid' id='mm-grid'>";
 			if($items->count()) {
 				foreach($items as $item) {
-					$out .= $this->_renderGridItem($item, $csrfName, $csrfVal);
+					$out .= $this->_renderGridItem($item, $csrfName, $csrfVal, (int) ($usageCounts[$item->id] ?? 0));
 				}
 			} else {
 				$out .= "<p class='mm-empty'>Keine Medien gefunden.</p>";
@@ -127,7 +137,7 @@ trait MediaManagerRenderTrait {
 		return $out;
 	}
 
-	protected function _renderGridItem(Page $item, string $csrfName, string $csrfVal): string {
+	protected function _renderGridItem(Page $item, string $csrfName, string $csrfVal, int $usageCount = 0): string {
 		$sanitizer = $this->wire->sanitizer;
 		$typ       = $this->api()->getTypString($item);
 		$basename  = $this->api()->getPrimaryBasename($item);
@@ -165,10 +175,16 @@ trait MediaManagerRenderTrait {
 		if($sizeStr !== '') {
 			$metaBits[] = $sizeStr;
 		}
-		$badgeClass = 'mm-badge-' . $sanitizer->pageName($typ);
-		$typBadge   = "<span class='mm-type-badge {$badgeClass}'>" . $sanitizer->entities(strtoupper($typ)) . "</span>";
-		$specsHtml  = count($metaBits) ? "<span class='mm-grid-specs'>" . $sanitizer->entities(implode(' · ', $metaBits)) . "</span>" : '';
-		$metaLine   = "<div class='mm-grid-meta uk-text-meta'>{$typBadge}{$specsHtml}</div>";
+		$primaryFile = $this->api()->getPrimaryPagefileForDisplay($item);
+		$isSvg       = ($primaryFile && strtolower((string) $primaryFile->ext) === 'svg');
+		$badgeClass  = 'mm-badge-' . ($isSvg ? 'svg' : $sanitizer->pageName($typ));
+		$badgeText   = $isSvg ? 'SVG' : strtoupper($typ);
+		$typBadge    = "<span class='mm-type-badge {$badgeClass}'>" . $sanitizer->entities($badgeText) . "</span>";
+		$usageBadge  = $usageCount > 0
+			? "<span class='mm-usage-badge mm-usage-active' title='Verwendet auf {$usageCount} Seite(n)'><i class='fa fa-link'></i> {$usageCount}</span>"
+			: "<span class='mm-usage-badge mm-usage-unused' title='Nicht verwendet'><i class='fa fa-chain-broken'></i> 0</span>";
+		$specsHtml   = count($metaBits) ? "<span class='mm-grid-specs'>" . $sanitizer->entities(implode(' · ', $metaBits)) . "</span>" : '';
+		$metaLine    = "<div class='mm-grid-meta uk-text-meta'>{$typBadge}{$usageBadge}{$specsHtml}</div>";
 
 		if($thumbUrl) {
 			$thumbInner = "<img class='mm-grid-img' src='" . $sanitizer->entities($thumbUrl) . "' alt='" . $imgAlt . "' loading='lazy'>";
@@ -188,7 +204,7 @@ trait MediaManagerRenderTrait {
 			. "<button type='button' class='mm-btn-duplicate' data-id='{$item->id}' data-csrf-name='" . $sanitizer->entities($csrfName) . "' data-csrf-val='" . $sanitizer->entities($csrfVal) . "' title='Duplizieren'><i class='fa fa-files-o'></i></button>"
 			. "<button type='button' class='mm-btn-delete' data-id='{$item->id}' data-csrf-name='" . $sanitizer->entities($csrfName) . "' data-csrf-val='" . $sanitizer->entities($csrfVal) . "' title='Löschen'><i class='fa fa-trash'></i></button>";
 
-		return "<div class='mm-grid-item uk-transition-toggle' tabindex='0' data-id='{$item->id}' data-typ='" . $sanitizer->entities($typ) . "'>
+		return "<div class='mm-grid-item uk-transition-toggle' tabindex='0' data-id='{$item->id}' data-typ='" . $sanitizer->entities($typ) . "' data-usage='{$usageCount}'>
 			<label class='mm-grid-select'>
 				<input type='checkbox' class='mm-bulk-cb' value='{$item->id}' aria-label='Auswahl'>
 			</label>
@@ -207,7 +223,7 @@ trait MediaManagerRenderTrait {
 		</div>";
 	}
 
-	protected function _renderListView(PageArray $items, string $csrfName, string $csrfVal): string {
+	protected function _renderListView(PageArray $items, string $csrfName, string $csrfVal, array $usageCounts = []): string {
 		if(!$items->count()) {
 			return "<p class='mm-empty'>Keine Medien gefunden.</p>";
 		}
@@ -219,17 +235,17 @@ trait MediaManagerRenderTrait {
 			<th>Datei</th>
 			<th class="uk-width-small uk-text-nowrap">Maße</th>
 			<th class="uk-width-small">Größe</th>
-			<th class="uk-width-small">Typ</th>
+			<th class="uk-width-small">Typ / Nutzung</th>
 			<th class="uk-table-shrink"></th>
 		</tr></thead><tbody>';
 		foreach($items as $item) {
-			$out .= $this->_renderListRow($item, $csrfName, $csrfVal);
+			$out .= $this->_renderListRow($item, $csrfName, $csrfVal, (int) ($usageCounts[$item->id] ?? 0));
 		}
 		$out .= '</tbody></table></div>';
 		return $out;
 	}
 
-	protected function _renderListRow(Page $item, string $csrfName, string $csrfVal): string {
+	protected function _renderListRow(Page $item, string $csrfName, string $csrfVal, int $usageCount = 0): string {
 		$sanitizer = $this->wire->sanitizer;
 		$typ       = $this->api()->getTypString($item);
 		$basename  = $this->api()->getPrimaryBasename($item);
@@ -253,8 +269,14 @@ trait MediaManagerRenderTrait {
 		$dimEsc  = $dim !== '' ? $sanitizer->entities($dim) : '—';
 		$sizeEsc = $sizeStr !== '' ? $sanitizer->entities($sizeStr) : '—';
 
-		$badgeClass = 'mm-badge-' . $sanitizer->pageName($typ);
-		$typBadge   = "<span class='mm-type-badge {$badgeClass}'>" . $sanitizer->entities(strtoupper($typ)) . "</span>";
+		$primaryFile = $this->api()->getPrimaryPagefileForDisplay($item);
+		$isSvg       = ($primaryFile && strtolower((string) $primaryFile->ext) === 'svg');
+		$badgeClass  = 'mm-badge-' . ($isSvg ? 'svg' : $sanitizer->pageName($typ));
+		$badgeText   = $isSvg ? 'SVG' : strtoupper($typ);
+		$typBadge    = "<span class='mm-type-badge {$badgeClass}'>" . $sanitizer->entities($badgeText) . "</span>";
+		$usageBadge  = $usageCount > 0
+			? "<span class='mm-usage-badge mm-usage-active' title='Verwendet auf {$usageCount} Seite(n)'><i class='fa fa-link'></i> {$usageCount}</span>"
+			: "<span class='mm-usage-badge mm-usage-unused' title='Nicht verwendet'><i class='fa fa-chain-broken'></i> 0</span>";
 
 		$pubUrl  = $this->api()->getPublicFileUrl($item);
 		$pubAttr = $pubUrl !== '' ? htmlspecialchars($pubUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8') : '';
@@ -262,13 +284,13 @@ trait MediaManagerRenderTrait {
 			? "<button type='button' class='uk-icon-link mm-btn-copy-url uk-margin-small-right' data-url='" . $pubAttr . "' title='URL kopieren'><i class='fa fa-link'></i></button>"
 			: '';
 
-		return "<tr class='mm-list-row' data-id='{$item->id}' data-typ='" . $sanitizer->entities($typ) . "'>
+		return "<tr class='mm-list-row' data-id='{$item->id}' data-typ='" . $sanitizer->entities($typ) . "' data-usage='{$usageCount}'>
 			<td><label class='mm-list-cb-wrap'><input type='checkbox' class='mm-bulk-cb' value='{$item->id}' aria-label='Auswahl'></label></td>
 			<td class='mm-list-thumb-cell'>{$thumb}</td>
 			<td><div class='mm-list-file'>{$fileEsc}</div>{$subLine}</td>
 			<td>{$dimEsc}</td>
 			<td>{$sizeEsc}</td>
-			<td>{$typBadge}</td>
+			<td>{$typBadge} {$usageBadge}</td>
 			<td class='uk-text-nowrap'>
 				<a href='./edit/?id={$item->id}' class='uk-icon-link uk-margin-small-right' title='Bearbeiten'><i class='fa fa-pencil'></i></a>"
 				. ($this->api()->getPrimaryPageimage($item) ? "<a href='./imageedit/?id={$item->id}' class='uk-icon-link uk-margin-small-right' title='Bild bearbeiten'><i class='fa fa-crop'></i></a>" : '')
@@ -395,11 +417,29 @@ trait MediaManagerRenderTrait {
 			? "<div class='mm-edit-preview-sticky uk-card uk-card-default uk-card-body uk-padding-small'>{$vorschau}</div>"
 			: '';
 
+		$refPages = $this->api()->getReferencingPages($item);
+		$usageHtml = "<div class='mm-edit-usage uk-card uk-card-default uk-card-body uk-padding-small uk-margin-top'>";
+		$usageHtml .= "<h4 class='uk-card-title uk-margin-remove-bottom'><i class='fa fa-link'></i> Verwendung im System</h4>";
+		if($refPages->count() > 0) {
+			$usageHtml .= "<p class='mm-hint uk-margin-small-top'>Verwendet auf <strong>{$refPages->count()} Seite(n)</strong>:</p>";
+			$usageHtml .= "<ul class='uk-list uk-list-bullet mm-usage-page-list'>";
+			foreach($refPages as $refPage) {
+				$editLink = $this->wire->config->urls->admin . 'page/edit/?id=' . $refPage->id;
+				$pTitle = $sanitizer->entities($refPage->title ?: $refPage->name);
+				$usageHtml .= "<li><a href='{$editLink}' target='_blank' class='uk-link-muted' title='Im Seiten-Editor öffnen'>{$pTitle} <i class='fa fa-external-link uk-text-small'></i></a></li>";
+			}
+			$usageHtml .= "</ul>";
+		} else {
+			$usageHtml .= "<p class='uk-text-meta uk-margin-small-top'><span class='uk-label uk-label-warning'>Nicht verwendet</span> Keine aktiven Verknüpfungen. Das Medium kann bedenkenlos gelöscht werden.</p>";
+		}
+		$usageHtml .= "</div>";
+
 		return "
 		<div class='mm-edit-wrap'>
 			<div class='uk-grid-medium' uk-grid>
 				<div class='uk-width-1-1 uk-width-1-3@m'>
 					{$previewBox}
+					{$usageHtml}
 				</div>
 				<div class='uk-width-1-1 uk-width-2-3@m'>
 					<form method='post' action='../save/' class='mm-edit-form'>
@@ -463,12 +503,53 @@ trait MediaManagerRenderTrait {
 		$csrfName  = $this->wire->session->CSRF->getTokenName();
 		$csrfVal   = $this->wire->session->CSRF->getTokenValue();
 
+		if(strtolower((string) $bild->ext) === 'svg') {
+			return "
+			<div class='mm-imageedit-wrap'>
+				<div class='mm-imageedit-canvas'>
+					<img id='mm-edit-img' src='" . $sanitizer->entities($bild->url) . "' alt=''>
+				</div>
+				<div class='mm-imageedit-toolbar'>
+					<div class='uk-alert uk-alert-primary'>
+						<p><strong>Vektorgrafik (SVG)</strong></p>
+						<p class='mm-hint'>SVGs sind verlustfrei skalierbare Vektorgrafiken und benötigen kein manuelles Drehen, Zuschneiden oder Pixel-Resizing.</p>
+					</div>
+					<div class='mm-imageedit-actions'>
+						<a href='../edit/?id={$item->id}' class='ui-button'><i class='fa fa-arrow-left'></i> Zurück</a>
+					</div>
+				</div>
+			</div>";
+		}
+
+		$focus = $this->api()->getMediaFocus($item);
+
 		return "
 		<div class='mm-imageedit-wrap'>
-			<div class='mm-imageedit-canvas'>
-				<img id='mm-edit-img' src='" . $sanitizer->entities($bild->url) . "' alt=''>
+			<div class='mm-imageedit-canvas' id='mm-canvas-wrap'>
+				<div class='mm-imageedit-stage' id='mm-canvas-stage'>
+					<img id='mm-edit-img' src='" . $sanitizer->entities($bild->url) . "' alt='' draggable='false'>
+					<div id='mm-focal-point' class='mm-focal-point' style='top: {$focus['top']}%; left: {$focus['left']}%;' title='Fokuspunkt verschieben'>
+						<div class='mm-focal-reticle'></div>
+					</div>
+				</div>
 			</div>
 			<div class='mm-imageedit-toolbar'>
+				<div class='mm-imageedit-focal'>
+					<p class='mm-imageedit-section-title'>Fokuspunkt (Focal Point)</p>
+					<p class='mm-hint'>Klicke oder ziehe im Bild auf das Hauptmotiv. Bei responsivem Zuschnitt im Frontend bleibt dieser Punkt stets im sichtbaren Bildbereich.</p>
+					<div class='uk-grid-small uk-child-width-1-2 uk-margin-small-bottom' uk-grid>
+						<div><span class='uk-text-meta'>X (horizontal):</span> <strong id='mm-focal-x-val'>{$focus['left']}%</strong></div>
+						<div><span class='uk-text-meta'>Y (vertikal):</span> <strong id='mm-focal-y-val'>{$focus['top']}%</strong></div>
+					</div>
+					<input type='hidden' id='mm-focal-top' value='{$focus['top']}'>
+					<input type='hidden' id='mm-focal-left' value='{$focus['left']}'>
+					<button type='button' class='ui-button mm-focal-save-btn' id='mm-focal-save' data-id='{$item->id}' data-csrf-name='" . $sanitizer->entities($csrfName) . "' data-csrf-val='" . $sanitizer->entities($csrfVal) . "'>
+						<i class='fa fa-crosshairs'></i> Fokuspunkt speichern
+					</button>
+					<button type='button' class='ui-button mm-focal-reset-btn' id='mm-focal-reset'>
+						<i class='fa fa-undo'></i> Zentrieren (50%)
+					</button>
+				</div>
 				<div class='mm-imageedit-rotate'>
 					<p class='mm-imageedit-section-title'>Drehen</p>
 					<p class='mm-hint'>Klick dreht die <strong>Originaldatei</strong> (nicht nur die Vorschau).</p>
