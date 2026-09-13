@@ -166,6 +166,59 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 ---
 
+## Phase 8 — ProcessWire-Core-Harmonisierung (Stabilitäts- & Hook-Fundament)
+
+**Ziel:** Beseitigung subtiler Architektur- und Typ-Schwachstellen (identifiziert durch den Core-Skill 3.0.257) als verlässliches Fundament für Frontend-API und UI.
+
+| # | Schritt | Beschreibung | Nach |
+|---|---------|--------------|-----|
+| 8.1 | `[ ]` | **`FieldtypeMedienManager::getBlankValue()`:** Explizites Überschreiben mit Rückgabe eines leeren `PageArray` (`$pages->newPageArray()`) statt des geerbten `WireArray` — garantiert konsistente Methoden auf ungespeicherten/leeren Feldern. | Phase 7 |
+| 8.2 | `[ ]` | **Eigenschafts-Vererbung `getInputfield()`:** Übergabe von `maxItems` und `allowedTypes` vom `Field` an die `Inputfield`-Instanz (`$inputfield->set(...)`), damit Grenzwerte und Filter auch im Kontext von Ajax/Repeaters zuverlässig greifen. | Phase 7 |
+| 8.3 | `[ ]` | **`MediaManagerAPI extends Wire`:** Anbindung an ProcessWires Hook-Dispatcher (`Wire::__call()`); Kernmethoden hookbar deklarieren (`___createMediaItem()`, `___findMedia()`, `___replacePrimaryFile()`, `___deleteMedia()`). | Phase 4 |
+| 8.4 | `[ ]` | **Robuste Initialisierung:** Absicherung gegen Null-Referenzen bei `$this->wire->page` in `init()` für CLI- und API-Aufrufe. | Phase 0 |
+
+---
+
+## Phase 9 — Modernes Visual Styling & UI-Polish (Admin & Picker)
+
+**Ziel:** Frische, zeitgemäße Optik für Redakteure bei voller UIkit-Kompatibilität und subtilen Animationen.
+
+| # | Schritt | Beschreibung | Nach |
+|---|---------|--------------|-----|
+| 9.1 | `[ ]` | **Modernes Kartendesign:** Weiche Schatten (`box-shadow: 0 4px 14px rgba(0,0,0,0.05)`), abgerundete Ecken (`border-radius: 10px`), sanfter Hover-Lift, Frosted-Glass-Aktions-Overlay (`backdrop-filter: blur(6px)`). | Phase 2 |
+| 9.2 | `[ ]` | **Toolbar & Bulk-Bar:** Visuelle Verbindung, moderner Segment-Umschalter Raster/Liste, akzentuierte Auswahlzustände und animierte Zähler-Badges. | Phase 2 |
+| 9.3 | `[ ]` | **Upload-Modal & Dropzone:** Moderne Drag&Drop-Optik mit Puls-Feedback und Datei-Preview-Chips. | Phase 1 |
+| 9.4 | `[ ]` | **Picker-Modal-Polish:** Modernisiertes Such- und Filter-Layout im Seiten-Editor mit schnellen visuellen Zuständen. | Phase 7 |
+
+---
+
+## Phase 10 — Frontend-Mini-API & Responsive WebP/Picture Pipeline
+
+**Ziel:** 1-Zeilen-Template-Ausgabe mit automatisiertem WebP und responsiven Größen (`<picture>` / `srcset`) auf Basis des Hook-Fundaments.
+
+| # | Schritt | Beschreibung | Nach |
+|---|---------|--------------|-----|
+| 10.1 | `[ ]` | **Hook-basierte Mini-API:** `$media->render([options])` und `$page->mein_feld->render()` direkt über ProcessWire-Hooks (`addHookMethod`) verfügbar machen — kein manuelles `new MediaManagerAPI()` im Template nötig. | Phase 8 |
+| 10.2 | `[ ]` | **Responsive `<picture>`-Pipeline:** Automatische Generierung von `<picture>` mit `srcset` und frei definierbaren Breakpoints (z. B. 400w, 800w, 1200w). | 10.1 |
+| 10.3 | `[ ]` | **On-the-Fly WebP-Skalierung:** Für jeden skalierten Breakpoint wird automatisch die passende `.webp`-Variante erzeugt und im `<picture>` als `<source type="image/webp">` ausgespielt. | 10.2, Phase 3 |
+| 10.4 | `[ ]` | **Accessibility & Caption:** Automatisches Einbinden von `alt` (`mm_alt` / Titel) und `<figcaption>` (`mm_caption`), konfigurierbar per Option. | 10.1 |
+| 10.5 | `[ ]` | **Schlanke Helper:** Direkte Eigenschaften und Kurzmethoden: `$media->url(w, h)`, `$media->alt`, `$media->caption`. | 10.1 |
+
+---
+
+## Phase 11 — Redaktionskomfort & Asset-Intelligence
+
+**Ziel:** Funktionen auf Augenhöhe mit modernen Headless- und Asset-Systemen.
+
+| # | Schritt | Beschreibung | Nach |
+|---|---------|--------------|-----|
+| 11.1 | `[ ]` | **Verwendungsnachweis („Used on pages“):** Rückwärtige Referenzanzeige im Detail/Grid („Verwendet auf: Seite A, Seite B“); Warnung vor dem Löschen genutzter Medien. | Phase 8 |
+| 11.2 | `[ ]` | **„Unbenutzte Medien“-Filter:** Schnelles Auffinden und Bereinigen verwaister Assets zur Speicherplatzoptimierung. | 11.1 |
+| 11.3 | `[ ]` | **Focal Point (Intelligenter Crop):** Klick-Fadenkreuz auf das Hauptmotiv im Bildeditor; ProcessWire-ImageSizer croppt responsiv auf diesen Fokuspunkt. | Phase 3 |
+| 11.4 | `[ ]` | **Sichere SVG-Unterstützung:** Upload und Ausgabe von `.svg` mit integriertem XML/Script-Sanitizer gegen Stored XSS. | Phase 6 |
+
+---
+
 ## Changelog dieses Plans
 
 | Datum | Änderung |
@@ -183,6 +236,7 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 | 2026-04-13 | **Phase 5** umgesetzt: `README.md` (Bedienung + Erweiterungsabschnitte), Deinstallationsstrategie, `MediaManagerAPI::uninstall()` leert Modul-Config. Modulversion **1.8**. |
 | 2026-04-13 | **Phase 6** umgesetzt: Schreib-AJAX nur POST+CSRF, Upload-Größe (ini + Modul-MB), Bulk-ID-Limit 500, Test-JSON ohne GET-Werte, `SECURITY.md`. Modulversion **1.9**. |
 | 2026-04-13 | **Phase 7** umgesetzt: `MedienManagerField`, Fieldtype-Vorlagen (Image/Images-ähnlich), Snippets in Feldkonfiguration, `getAccessibleLabel`/`getCaption`/`hasRenderableImage`, Picker-Filter `allowed_types`, `API.md` erweitert. Modulversion **2.0**. |
+| 2026-09-13 | **Phasen 8 bis 11** ergänzt: Phase 8 (ProcessWire-Core-Harmonisierung & Hook-Fundament aus Skill-Review), Phase 9 (Visual Styling & UI-Polish), Phase 10 (Frontend-Mini-API & Responsive WebP/`<picture>`), Phase 11 (Asset-Intelligence: Verwendungsnachweis, Focal Point, SVG-Sanitizer). |
 
 ---
 
