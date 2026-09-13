@@ -38,7 +38,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 	public static function getModuleInfo(): array {
 		return [
 			'title'       => 'Medien Manager',
-			'version'     => '2.1.0',
+			'version'     => '2.2.0',
 			'summary'     => 'Zentrales Medienmanagement für Bilder, Videos und PDFs.',
 			'author'      => 'bsProcessMedienManager',
 			'icon'        => 'photo',
@@ -115,6 +115,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 	public function init(): void {
 		parent::init();
 		$this->api();
+		MediaManagerAPI::registerFrontendHooks($this->wire);
 
 		$cfg = $this->wire->modules->getModuleConfigData(__CLASS__);
 		$gl  = isset($cfg['gridLimit']) ? (int) $cfg['gridLimit'] : 24;

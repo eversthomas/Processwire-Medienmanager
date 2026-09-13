@@ -95,6 +95,68 @@ Lesezugriffe ohne CSRF. **Schreibende** Aktionen: Session-**CSRF** und nur **POS
 | `thumb` | Chip-Vorschau |
 | … | (weitere wie in früherer Version) |
 
+
+## Frontend-Mini-API (Phase 10)
+
+Die Frontend-Mini-API ermöglicht die 1-Zeilen-Ausgabe von Medien im Template — inklusive responsiver `<picture>`-Pipeline, WebP-Varianten, Breakpoints, CLS-Schutz und barrierefreiem Alt/Caption-Handling.
+
+Es ist **kein** manuelles `new MediaManagerAPI()` oder `require_once` im Template nötig.
+
+### 1. Schnelle 1-Zeilen-Ausgabe
+
+```php
+// Automatisch responsives <picture> mit WebP, srcset und Fallback <img>
+echo $page->mein_bild->render();
+```
+
+### 2. Ausgabe mit Optionen
+
+```php
+echo $page->mein_bild->render([
+    'width'        => 1200,          // Ziel-Maximalbreite (Standard: 1200)
+    'height'       => 600,           // Ziel-Höhe (0 = proportional)
+    'crop'         => true,          // Zuschneiden ('center', 'north', etc.)
+    'webp'         => true,          // Automatische .webp-Erzeugung (Standard: true)
+    'picture'      => true,          // Als <picture> ausgeben (Standard: true; false = nur <img>)
+    'widths'       => [480, 800, 1200], // Eigene Breakpoints für srcset
+    'sizes'        => '(max-width: 768px) 100vw, 1200px', // Responsive sizes-Attribut
+    'class'        => 'my-img-class',// CSS-Klasse für <img>
+    'pictureClass' => 'my-picture',  // CSS-Klasse für <picture>
+    'loading'      => 'lazy',        // 'lazy' (Standard) oder 'eager'
+    'caption'      => true,          // Bildunterschrift (mm_caption in <figcaption>)
+    'figureClass'  => 'my-figure',   // CSS-Klasse für <figure>
+]);
+```
+
+### 3. Mehrfachauswahl / PageArray
+
+```php
+// Alle Medien eines Feldes auf einmal rendern:
+echo $page->meine_galerie->render();
+
+// Oder einzeln im Loop:
+foreach($page->meine_galerie as $media) {
+    echo $media->render(['width' => 800]);
+}
+```
+
+### 4. Direkte Helper-Properties auf `$media`
+
+Für individuelle Markup-Strukturen stehen direkte Properties auf der Medien-Page zur Verfügung:
+
+| Property / Methode | Rückgabe | Beschreibung |
+|--------------------|----------|--------------|
+| `$media->mediaUrl` | `string` | Direkte öffentliche URL der Originaldatei |
+| `$media->mediaUrl(w, h)` | `string` | URL einer skalierten Bildvariante (z. B. `$media->mediaUrl(800, 600)`) |
+| `$media->alt` | `string` | Alternativtext (`mm_alt` mit Fallback auf Titel) |
+| `$media->caption` | `string` | Bildunterschrift (`mm_caption`) |
+| `$media->isImage` | `bool` | `true`, wenn das Medium ein Bild ist |
+| `$media->isVideo` | `bool` | `true`, wenn das Medium ein Video ist |
+| `$media->isPdf` | `bool` | `true`, wenn das Medium ein PDF ist |
+| `$media->pageimage`| `Pageimage|null` | Natives ProcessWire `Pageimage`-Objekt für native Methoden |
+| `$media->dimensions`| `string` | Z. B. `"1920 × 1080"` |
+| `$media->filesize` | `string` | Z. B. `"2.4 MB"` |
+
 ## Berechtigung
 
 `medien-manager` — siehe Modul `permissions` in `getModuleInfo()`.

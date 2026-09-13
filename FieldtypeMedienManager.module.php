@@ -93,7 +93,7 @@ class FieldtypeMedienManager extends FieldtypeMulti {
 	public static function getModuleInfo(): array {
 		return [
 			'title'    => 'Medien (Manager)',
-			'version'  => 2,
+			'version'  => '2.2.0',
 			'summary'  => 'Referenzen auf Medien-Items (Bibliothek) — vergleichbar mit Image/Images, inkl. Template-Snippets.',
 			'requires' => ['InputfieldMedienManager'],
 			'installs' => ['InputfieldMedienManager'],
@@ -310,6 +310,7 @@ class FieldtypeMedienManager extends FieldtypeMulti {
 	public function init(): void {
 		parent::init();
 		$this->wire->pages->addHookAfter('deleted', $this, 'hookPagesDeleted');
+		MediaManagerAPI::registerFrontendHooks($this->wire);
 	}
 
 	/**
@@ -415,33 +416,29 @@ class FieldtypeMedienManager extends FieldtypeMulti {
 		}
 
 		$singleCode = implode("\n", [
-			'<?php namespace ProcessWire;',
-			"require_once \$config->paths->site . 'modules/bsProcessMedienManager/MediaManagerAPI.php';",
-			'$mm = new MediaManagerAPI($wire);',
-			'$media = $page->' . $fn . '->first();',
-			'if($media && $media->id && $mm->hasRenderableImage($media)) {',
-			'	$img = $mm->getPrimaryPageimage($media);',
-			"	\$sized = \$img->size(1200, 1200, ['cropping' => false, 'upscaling' => false]);",
-			'	$alt = $mm->getAccessibleLabel($media);',
-			"	echo '<figure class=\"mm-figure\" role=\"group\">';",
-			"	echo '<img src=\"' . \$sized->url . '\" width=\"' . (int) \$sized->width . '\" height=\"' . (int) \$sized->height . '\" alt=\"' . \$wire->sanitizer->entities(\$alt) . '\" loading=\"lazy\" decoding=\"async\">';",
-			'	$cap = $mm->getCaption($media);',
-			"	if(\$cap !== '') echo '<figcaption class=\"mm-figcaption\">' . \$wire->sanitizer->entities(\$cap) . '</figcaption>';",
-			"	echo '</figure>';",
-			'}',
+			'// 1-Zeiler: Automatisch responsives <picture> mit WebP, srcset & Fallback',
+			'echo $page->' . $fn . '->render();',
+			'',
+			'// Mit Optionen (z. B. Zielbreite, Bildzuschnitt, eigene CSS-Klasse):',
+			'echo $page->' . $fn . '->render([',
+			"    'width'   => 1200,",
+			"    'crop'    => true,",
+			"    'class'   => 'hero-img',",
+			"    'loading' => 'lazy',",
+			']);',
 		]);
 
 		$multiCode = implode("\n", [
-			'<?php namespace ProcessWire;',
-			"require_once \$config->paths->site . 'modules/bsProcessMedienManager/MediaManagerAPI.php';",
-			'$mm = new MediaManagerAPI($wire);',
+			'// Mehrfachauswahl: Jedes Medium einzeln rendern',
 			'foreach($page->' . $fn . ' as $media) {',
-			'	if(!$media->id || !$mm->hasRenderableImage($media)) continue;',
-			'	$img = $mm->getPrimaryPageimage($media);',
-			"	\$sized = \$img->size(800, 800, ['cropping' => false, 'upscaling' => false]);",
-			'	$alt = $mm->getAccessibleLabel($media);',
-			"	echo '<img class=\"mm-gallery-img\" src=\"' . \$sized->url . '\" width=\"' . (int) \$sized->width . '\" height=\"' . (int) \$sized->height . '\" alt=\"' . \$wire->sanitizer->entities(\$alt) . '\" loading=\"lazy\" decoding=\"async\">';",
+			"    echo \$media->render(['width' => 800]);",
 			'}',
+			'',
+			'// Direkte Eigenschaften für individuelle HTML-Strukturen:',
+			'echo $media->mediaUrl;    // Öffentliche URL der Datei (oder $media->mediaUrl(800, 600) skaliert)',
+			'echo $media->alt;         // Alternativtext (mm_alt oder Titel)',
+			'echo $media->caption;     // Bildunterschrift (mm_caption)',
+			'$img = $media->pageimage; // Natives ProcessWire Pageimage-Objekt für eigene Bildoperationen',
 		]);
 
 		$h = static function(string $s): string {

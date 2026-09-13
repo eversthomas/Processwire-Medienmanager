@@ -185,11 +185,11 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 | # | Schritt | Beschreibung | Nach |
 |---|---------|--------------|-----|
-| 9.1 | `[ ]` | **Modernes Kartendesign:** Weiche Schatten (`box-shadow: 0 4px 14px rgba(0,0,0,0.05)`), abgerundete Ecken (`border-radius: 10px`), sanfter Hover-Lift, Frosted-Glass-Aktions-Overlay (`backdrop-filter: blur(6px)`). | Phase 2 |
-| 9.2 | `[ ]` | **Toolbar & Bulk-Bar:** Visuelle Verbindung, moderner Segment-Umschalter Raster/Liste, akzentuierte Auswahlzustände und animierte Zähler-Badges. | Phase 2 |
-| 9.3 | `[ ]` | **Upload-Modal & Dropzone:** Moderne Drag&Drop-Optik mit Puls-Feedback und Datei-Preview-Chips. | Phase 1 |
-| 9.4 | `[ ]` | **Picker-Modal-Polish:** Modernisiertes Such- und Filter-Layout im Seiten-Editor mit schnellen visuellen Zuständen. | Phase 7 |
-| 9.5 | `[ ]` | **Feedback & Toasts:** Zuverlässige UIkit-Erfolgsbenachrichtigungen beim Zuweisen von Kategorien (Bulk & Einzeln) sowie bei Kategorie-Verwaltung. | Phase 2 |
+| 9.1 | `[x]` | **Modernes Kartendesign:** Weiche Schatten (`box-shadow: 0 4px 14px rgba(0,0,0,0.05)`), abgerundete Ecken (`border-radius: 10px`), sanfter Hover-Lift, Frosted-Glass-Aktions-Overlay (`backdrop-filter: blur(6px)`). | Phase 2 |
+| 9.2 | `[x]` | **Toolbar & Bulk-Bar:** Visuelle Verbindung, moderner Segment-Umschalter Raster/Liste, akzentuierte Auswahlzustände und animierte Zähler-Badges. | Phase 2 |
+| 9.3 | `[x]` | **Upload-Modal & Dropzone:** Moderne Drag&Drop-Optik mit Puls-Feedback und Datei-Preview-Chips. | Phase 1 |
+| 9.4 | `[x]` | **Picker-Modal-Polish:** Modernisiertes Such- und Filter-Layout im Seiten-Editor mit schnellen visuellen Zuständen. | Phase 7 |
+| 9.5 | `[x]` | **Feedback & Toasts:** Zuverlässige UIkit-Erfolgsbenachrichtigungen beim Zuweisen von Kategorien (Bulk & Einzeln) sowie bei Kategorie-Verwaltung. | Phase 2 |
 
 
 ---
@@ -200,11 +200,11 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 | # | Schritt | Beschreibung | Nach |
 |---|---------|--------------|-----|
-| 10.1 | `[ ]` | **Hook-basierte Mini-API:** `$media->render([options])` und `$page->mein_feld->render()` direkt über ProcessWire-Hooks (`addHookMethod`) verfügbar machen — kein manuelles `new MediaManagerAPI()` im Template nötig. | Phase 8 |
-| 10.2 | `[ ]` | **Responsive `<picture>`-Pipeline:** Automatische Generierung von `<picture>` mit `srcset` und frei definierbaren Breakpoints (z. B. 400w, 800w, 1200w). | 10.1 |
-| 10.3 | `[ ]` | **On-the-Fly WebP-Skalierung:** Für jeden skalierten Breakpoint wird automatisch die passende `.webp`-Variante erzeugt und im `<picture>` als `<source type="image/webp">` ausgespielt. | 10.2, Phase 3 |
-| 10.4 | `[ ]` | **Accessibility & Caption:** Automatisches Einbinden von `alt` (`mm_alt` / Titel) und `<figcaption>` (`mm_caption`), konfigurierbar per Option. | 10.1 |
-| 10.5 | `[ ]` | **Schlanke Helper:** Direkte Eigenschaften und Kurzmethoden: `$media->url(w, h)`, `$media->alt`, `$media->caption`. | 10.1 |
+| 10.1 | `[x]` | **Hook-basierte Mini-API:** `$media->render([options])` und `$page->mein_feld->render()` direkt über ProcessWire-Hooks (`addHookMethod`) verfügbar machen — kein manuelles `new MediaManagerAPI()` im Template nötig. | Phase 8 |
+| 10.2 | `[x]` | **Responsive `<picture>`-Pipeline:** Automatische Generierung von `<picture>` mit `srcset` und frei definierbaren Breakpoints (z. B. 400w, 800w, 1200w). | 10.1 |
+| 10.3 | `[x]` | **On-the-Fly WebP-Skalierung:** Für jeden skalierten Breakpoint wird automatisch die passende `.webp`-Variante erzeugt und im `<picture>` als `<source type="image/webp">` ausgespielt. | 10.2, Phase 3 |
+| 10.4 | `[x]` | **Accessibility & Caption:** Automatisches Einbinden von `alt` (`mm_alt` / Titel) und `<figcaption>` (`mm_caption`), konfigurierbar per Option. | 10.1 |
+| 10.5 | `[x]` | **Schlanke Helper:** Direkte Eigenschaften und Kurzmethoden: `$media->url(w, h)`, `$media->alt`, `$media->caption`. | 10.1 |
 
 ---
 
@@ -241,6 +241,8 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 | 2026-09-13 | **Phasen 8 bis 11** ergänzt: Phase 8 (ProcessWire-Core-Harmonisierung & Hook-Fundament aus Skill-Review), Phase 9 (Visual Styling & UI-Polish), Phase 10 (Frontend-Mini-API & Responsive WebP/`<picture>`), Phase 11 (Asset-Intelligence: Verwendungsnachweis, Focal Point, SVG-Sanitizer). |
 | 2026-09-13 | **Phase 8** umgesetzt und bestätigt (Version **2.1.0**). |
 | 2026-09-13 | **Phase 9** im Code umgesetzt: Modernes Visual Styling (weiche Schatten, Hover-Lift, Frosted-Glass-Overlays, Pill-Badges für Medientypen, animierte Segment-Controls, Dropzone-Polish, Inputfield-Chips mit Checkmark-Animation) und Toast-Erfolgsmeldungen beim Kategorie-Setzen. |
+| 2026-09-13 | **Phase 9** getestet und bestätigt. |
+| 2026-09-13 | **Phase 10** umgesetzt: Frontend-Mini-API (`$media->render()`, `$page->feld->render()`), responsive `<picture>`-Pipeline mit WebP-Generierung, Zero-CLS, Accessibility/Caption und Helper-Properties. Modulversion auf **2.2.0** erhöht. |
 
 ---
 
