@@ -117,6 +117,11 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 		$this->api();
 		MediaManagerAPI::registerFrontendHooks($this->wire);
 
+		// Einmalige Selbstheilung / Bereinigung der verwaisten Hauptmenü-Seite für Superuser
+		if($this->wire->user && $this->wire->user->isLoggedin() && $this->wire->user->isSuperuser()) {
+			$this->api()->cleanupPhantomRootPage();
+		}
+
 		$cfg = $this->wire->modules->getModuleConfigData(__CLASS__);
 		$gl  = isset($cfg['gridLimit']) ? (int) $cfg['gridLimit'] : 24;
 		if($gl < 1) $gl = 24;
@@ -666,10 +671,11 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 	// -----------------------------------------------------------------------
 
 	public function ___install(): void {
+		parent::___install();
 		require_once __DIR__ . '/MediaManagerAPI.php';
 		$this->api = new MediaManagerAPI($this->wire());
 		$this->api->install();
-		parent::___install();
+		$this->api->cleanupPhantomRootPage();
 	}
 
 	/**
@@ -678,6 +684,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 	public function ___upgrade($fromVersion, $toVersion): void {
 		require_once __DIR__ . '/MediaManagerAPI.php';
 		$this->api = new MediaManagerAPI($this->wire());
+		$this->api->cleanupPhantomRootPage();
 		if(version_compare((string) $fromVersion, '1.5', '<')) {
 			$this->api->install();
 		}

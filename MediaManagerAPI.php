@@ -43,11 +43,22 @@ class MediaManagerAPI extends Wire {
 	}
 
 	/**
-	 * Verwaltungs-Root-Page (versteckt unter Admin), Fallback aus Modul-Konfiguration.
+	 * Ermittelt die echte Process-Admin-Page des Moduls (/admin/setup/medienmanager/).
 	 */
 	protected function _getRootPage(): Page {
+		// 1. Primär: Die tatsächliche Process-Admin-Page von bsProcessMedienManager
+		$processPage = $this->wire->pages->get("process=bsProcessMedienManager");
+		if($processPage->id) return $processPage;
+
+		// 2. Unter Setup suchen
 		$adminId = (int) $this->wire->config->adminRootPageID;
-		// Root wird bei install als Child von admin angelegt (Template i. d. R. „admin“, nicht medienmanager-root).
+		$setup = $this->wire->pages->get("name=setup, parent=$adminId");
+		if($setup->id) {
+			$p = $setup->child("name=" . self::ROOT_NAME . ", include=all");
+			if($p->id) return $p;
+		}
+
+		// 3. Fallback: beliebige Page mit name=medienmanager unter Admin
 		return $this->wire->pages->get("name=" . self::ROOT_NAME . ", parent=$adminId, include=all");
 	}
 
@@ -55,7 +66,24 @@ class MediaManagerAPI extends Wire {
 	public function getRootPageId(): int {
 		$config = $this->wire->modules->getModuleConfigData('bsProcessMedienManager');
 		$id = isset($config['rootPageID']) ? (int) $config['rootPageID'] : 0;
-		if($id <= 0) $id = $this->_getRootPage()->id;
+		$realPage = $this->_getRootPage();
+
+		// Falls rootPageID auf eine veraltete/verwaiste Page ohne Prozess zeigt, auf echte Process-Page korrigieren
+		if($id > 0 && $realPage->id && $id !== $realPage->id) {
+			$p = $this->wire->pages->get("id=$id, include=all");
+			if($p->id && (!$p->process || (string)$p->process !== 'bsProcessMedienManager')) {
+				$id = (int) $realPage->id;
+				$config['rootPageID'] = $id;
+				$this->wire->modules->saveModuleConfigData('bsProcessMedienManager', $config);
+			}
+		}
+
+		if($id <= 0 && $realPage->id) {
+			$id = (int) $realPage->id;
+			$config['rootPageID'] = $id;
+			$this->wire->modules->saveModuleConfigData('bsProcessMedienManager', $config);
+		}
+
 		return (int) $id;
 	}
 
@@ -627,18 +655,67 @@ class MediaManagerAPI extends Wire {
 	}
 
 	protected function _installRootPage(): Page {
-		$admin = $this->wire->pages->get($this->wire->config->adminRootPageID);
-		$root = $this->wire->pages->get("name=" . self::ROOT_NAME . ", include=all");
+		$root = $this->_getRootPage();
 		if(!$root->id) {
-			$root = $this->wire->pages->newPage(['template' => 'admin', 'parent' => $admin, 'name' => self::ROOT_NAME, 'title' => 'Medien Manager']);
-			$root->save();
+			$adminId = (int) $this->wire->config->adminRootPageID;
+			$setup = $this->wire->pages->get("name=setup, parent=$adminId");
+			$parent = $setup->id ? $setup : $this->wire->pages->get($adminId);
+			$root = $parent->child("name=" . self::ROOT_NAME . ", include=all");
+			if(!$root->id) {
+				$root = $this->wire->pages->newPage([
+					'template' => 'admin',
+					'parent'   => $parent,
+					'name'     => self::ROOT_NAME,
+					'title'    => 'Medien Manager',
+					'process'  => 'bsProcessMedienManager',
+				]);
+				$root->save();
+			}
 		}
 		$cfg = $this->wire->modules->getModuleConfigData('bsProcessMedienManager');
-		if(empty($cfg['rootPageID']) && $root->id) {
+		if($root->id && ($cfg['rootPageID'] ?? 0) !== (int) $root->id) {
 			$cfg['rootPageID'] = (int) $root->id;
 			$this->wire->modules->saveModuleConfigData('bsProcessMedienManager', $cfg);
 		}
 		return $root;
+	}
+
+	/**
+	 * Bereinigt die verwaiste Hauptmenü-Seite (/admin/medienmanager/), falls vorhanden.
+	 * Hängt darin enthaltene Items/Kategorien sicher auf die echte Process-Page um.
+	 *
+	 * @return bool True, wenn eine verwaiste Seite bereinigt wurde
+	 */
+	public function cleanupPhantomRootPage(): bool {
+		$adminId = (int) $this->wire->config->adminRootPageID;
+		$realPage = $this->_getRootPage();
+		if(!$realPage->id) return false;
+
+		// Verwaiste Hauptmenü-Seite suchen: direkt unter /admin/ (parent=$adminId), ungleich der echten Process-Page
+		$phantom = $this->wire->pages->get("name=" . self::ROOT_NAME . ", parent=$adminId, id!={$realPage->id}, include=all");
+		if($phantom->id && (!$phantom->process || (string)$phantom->process !== 'bsProcessMedienManager')) {
+			// Falls Items oder Kategorien darunter liegen, auf die echte Process-Page umhängen
+			$children = $phantom->children("include=all");
+			if($children->count()) {
+				foreach($children as $child) {
+					$child->parent = $realPage;
+					$child->save();
+				}
+			}
+
+			$phantomId = $phantom->id;
+			$this->wire->pages->delete($phantom, true);
+
+			// rootPageID sicherstellen
+			$cfg = $this->wire->modules->getModuleConfigData('bsProcessMedienManager');
+			$cfg['rootPageID'] = (int) $realPage->id;
+			$this->wire->modules->saveModuleConfigData('bsProcessMedienManager', $cfg);
+
+			$this->wire->log->save('medienmanager', "Bereinigung: Verwaiste Hauptmenü-Seite ID $phantomId gelöscht, Items auf ID {$realPage->id} umgehängt.");
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
