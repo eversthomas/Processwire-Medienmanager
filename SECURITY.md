@@ -36,4 +36,21 @@ Kurzüberblick für Reviews und Betrieb. Ergänzend: [`API.md`](API.md) (technis
 - **HTTPS** im Admin: übliche ProcessWire-Empfehlung  
 - **Backups** vor größeren Datenmigrationen  
 
-*Bei neuen Features diese Liste mitpflegen.*
+## Manuelle Smoke-Checkliste (nach Update)
+
+Kurztest im Admin — jeweils mit Rolle, die `medien-manager` hat (Picker zusätzlich mit `page-edit`):
+
+| # | Check | Erwartung |
+|---|--------|-----------|
+| 1 | Modul aktualisieren (nicht nur Refresh) | Version **2.3.1**, keine PHP-Fehler |
+| 2 | Medien Manager öffnen (Raster + Liste) | Grid/Liste laden, Filter sichtbar |
+| 3 | Eine Bilddatei + eine SVG hochladen | Items erscheinen; SVG ohne Script-Reste nutzbar |
+| 4 | Medium bearbeiten, speichern | Metadaten bleiben; CSRF ok |
+| 5 | Fokuspunkt setzen und speichern | Werte bleiben; Toast/Erfolg |
+| 6 | Medium auf einer Seite per Feld zuweisen | Picker lädt; Speichern der Seite ok |
+| 7 | Filter **Nur unbenutzte** / **Nur verwendete** | Zugewiesenes Medium unter „verwendet“; nach Entfernen der Referenz unter „unbenutzt“ (auch bei Page-Reference-Feldern auf `medienmanager-item`) |
+| 8 | Löschen eines verwendeten Mediums | Warnung mit Seitenliste; erst mit Bestätigung weg |
+| 9 | Bulk: Kategorie setzen / WebP (Bilder) | Erfolgsmeldung; keine CSRF-Fehler |
+| 10 | Frontend: `$page->feld->render()` | `<picture>`/Bild bzw. Video/PDF-Link wie zuvor |
+
+*Bei neuen Features diese Liste und die Tabellen oben mitpflegen.*

@@ -848,16 +848,40 @@ class MediaManagerAPI extends Wire {
 	 * @param int|Page $item Page oder ID des medienmanager-item
 	 * @return PageArray
 	 */
+	/**
+	 * Felder, die Medien-Item-IDs speichern können:
+	 * FieldtypeMedienManager sowie FieldtypePage, die auf medienmanager-item beschränkt sind.
+	 *
+	 * @return Field[]
+	 */
+	protected function getMediaReferenceFields(): array {
+		$out = [];
+		foreach($this->wire->fields->find('type=FieldtypeMedienManager') as $field) {
+			$out[] = $field;
+		}
+
+		$tpl = $this->wire->templates->get(self::ITEM_TEMPLATE);
+		if($tpl && $tpl->id) {
+			$tplId = (int) $tpl->id;
+			foreach($this->wire->fields->find('type=FieldtypePage') as $field) {
+				$single = (int) $field->get('template_id') === $tplId;
+				$multi  = is_array($field->get('template_ids')) && in_array($tplId, $field->get('template_ids'), true);
+				if($single || $multi) {
+					$out[] = $field;
+				}
+			}
+		}
+
+		return $out;
+	}
+
 	public function ___getReferencingPages($item): PageArray {
 		$id = $item instanceof Page ? (int) $item->id : (int) $item;
 		$out = $this->wire->pages->newPageArray();
 		if($id <= 0) return $out;
 
 		$pageIds = [];
-
-		// 1. Alle FieldtypeMedienManager Felder durchsuchen
-		$fields = $this->wire->fields->find('type=FieldtypeMedienManager');
-		foreach($fields as $field) {
+		foreach($this->getMediaReferenceFields() as $field) {
 			$table = $this->wire->database->escapeTable("field_{$field->name}");
 			try {
 				$stmt = $this->wire->database->prepare("SELECT DISTINCT pages_id FROM `{$table}` WHERE data = :id");
@@ -866,24 +890,6 @@ class MediaManagerAPI extends Wire {
 					$pageIds[] = (int) $row[0];
 				}
 			} catch(\Throwable $e) {}
-		}
-
-		// 2. PageReference-Felder prüfen, die medienmanager-item nutzen
-		$tpl = $this->wire->templates->get(self::ITEM_TEMPLATE);
-		if($tpl && $tpl->id) {
-			$pageFields = $this->wire->fields->find('type=FieldtypePage');
-			foreach($pageFields as $field) {
-				if((int) $field->get('template_id') === (int) $tpl->id || (is_array($field->get('template_ids')) && in_array($tpl->id, $field->get('template_ids')))) {
-					$table = $this->wire->database->escapeTable("field_{$field->name}");
-					try {
-						$stmt = $this->wire->database->prepare("SELECT DISTINCT pages_id FROM `{$table}` WHERE data = :id");
-						$stmt->execute([':id' => $id]);
-						while($row = $stmt->fetch(\PDO::FETCH_NUM)) {
-							$pageIds[] = (int) $row[0];
-						}
-					} catch(\Throwable $e) {}
-				}
-			}
 		}
 
 		$pageIds = array_unique(array_filter($pageIds, fn($pid) => $pid > 0));
@@ -897,13 +903,13 @@ class MediaManagerAPI extends Wire {
 
 	/**
 	 * Liefert alle eindeutigen Medien-IDs zurück, die aktuell auf mindestens einer aktiven Seite referenziert sind.
+	 * Quelle: FieldtypeMedienManager und passende FieldtypePage-Felder (wie {@see getReferencingPages()}).
 	 *
 	 * @return int[]
 	 */
 	public function ___getAllUsedMediaIds(): array {
 		$mediaIds = [];
-		$fields = $this->wire->fields->find('type=FieldtypeMedienManager');
-		foreach($fields as $field) {
+		foreach($this->getMediaReferenceFields() as $field) {
 			$table = $this->wire->database->escapeTable("field_{$field->name}");
 			try {
 				$sql = "SELECT DISTINCT f.data FROM `{$table}` AS f 
@@ -921,13 +927,13 @@ class MediaManagerAPI extends Wire {
 
 	/**
 	 * Liefert ein assoziatives Array [media_id => anzahl_verwendungen] für alle Medien.
+	 * Quelle: FieldtypeMedienManager und passende FieldtypePage-Felder (wie {@see getReferencingPages()}).
 	 *
 	 * @return array<int, int>
 	 */
 	public function ___getAllMediaUsageCounts(): array {
 		$counts = [];
-		$fields = $this->wire->fields->find('type=FieldtypeMedienManager');
-		foreach($fields as $field) {
+		foreach($this->getMediaReferenceFields() as $field) {
 			$table = $this->wire->database->escapeTable("field_{$field->name}");
 			try {
 				$sql = "SELECT f.data, COUNT(DISTINCT f.pages_id) AS cnt FROM `{$table}` AS f 
@@ -1456,6 +1462,17 @@ class MediaManagerAPI extends Wire {
 	}
 
 	/**
+	 * Request-lokale API-Instanz für Frontend-Hooks (vermeidet new pro Property-Zugriff).
+	 */
+	protected static function apiForHooks(Wire $wire): self {
+		static $instance = null;
+		if($instance === null) {
+			$instance = new self($wire);
+		}
+		return $instance;
+	}
+
+	/**
 	 * Registriert alle Frontend-Hooks für $media->render(), Properties und PageArray.
 	 */
 	public static function registerFrontendHooks(Wire $wire): void {
@@ -1463,11 +1480,12 @@ class MediaManagerAPI extends Wire {
 		if($registered) return;
 		$registered = true;
 
+		$api = self::apiForHooks($wire);
+
 		// 1. Page::renderMedia($options = [])
-		$wire->addHookMethod('Page::renderMedia', function(HookEvent $event) use ($wire) {
+		$wire->addHookMethod('Page::renderMedia', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page) return;
-			$api = new self($wire);
 			if(!$api->isMediaItem($page)) return;
 			$options = $event->arguments(0);
 			if(!is_array($options)) $options = [];
@@ -1475,11 +1493,10 @@ class MediaManagerAPI extends Wire {
 		});
 
 		// 2. Page::render hook — fängt $media->render($options) ab, wenn Template medienmanager-item ist
-		$wire->addHookBefore('Page::render', function(HookEvent $event) use ($wire) {
+		$wire->addHookBefore('Page::render', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page) return;
 			if($page->template && $page->template->name === self::ITEM_TEMPLATE) {
-				$api = new self($wire);
 				$options = $event->arguments(0);
 				if(!is_array($options)) $options = [];
 				$event->replace = true;
@@ -1489,10 +1506,9 @@ class MediaManagerAPI extends Wire {
 
 		// 3. PageArray::renderMedia($options = [])
 		try {
-			$wire->addHookMethod('PageArray::renderMedia', function(HookEvent $event) use ($wire) {
+			$wire->addHookMethod('PageArray::renderMedia', function(HookEvent $event) use ($api) {
 				$pageArray = $event->object;
 				if(!$pageArray instanceof PageArray || !$pageArray->count()) return;
-				$api = new self($wire);
 				$options = $event->arguments(0);
 				if(!is_array($options)) $options = [];
 				$event->return = $api->renderMediaCollection($pageArray, $options);
@@ -1501,12 +1517,11 @@ class MediaManagerAPI extends Wire {
 
 		// 4. PageArray::render hook — fängt $pageArray->render($options) ab, wenn PageArray Medien-Items enthält
 		try {
-			$wire->addHookBefore('PageArray::render', function(HookEvent $event) use ($wire) {
+			$wire->addHookBefore('PageArray::render', function(HookEvent $event) use ($api) {
 				$pageArray = $event->object;
 				if(!$pageArray instanceof PageArray || !$pageArray->count()) return;
 				$first = $pageArray->first();
 				if($first && $first->template && $first->template->name === self::ITEM_TEMPLATE) {
-					$api = new self($wire);
 					$options = $event->arguments(0);
 					if(!is_array($options)) $options = [];
 					$event->replace = true;
@@ -1516,10 +1531,9 @@ class MediaManagerAPI extends Wire {
 		} catch(\Throwable $e) {}
 
 		// 5. Helper-Methoden & Properties auf Page (nur für medienmanager-item)
-		$wire->addHookMethod('Page::mediaUrl', function(HookEvent $event) use ($wire) {
+		$wire->addHookMethod('Page::mediaUrl', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$w = (int) $event->arguments(0);
 			$h = (int) $event->arguments(1);
 			if($w > 0 && $api->hasRenderableImage($page)) {
@@ -1532,109 +1546,94 @@ class MediaManagerAPI extends Wire {
 			$event->return = $api->getPublicFileUrl($page);
 		});
 
-		$wire->addHookProperty('Page::mediaUrl', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::mediaUrl', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getPublicFileUrl($page);
 		});
 
-		$wire->addHookProperty('Page::fileUrl', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::fileUrl', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getPublicFileUrl($page);
 		});
 
-		$wire->addHookProperty('Page::alt', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::alt', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getAccessibleLabel($page);
 		});
 
-		$wire->addHookProperty('Page::caption', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::caption', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getCaption($page);
 		});
 
-		$wire->addHookProperty('Page::isImage', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::isImage', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->hasRenderableImage($page);
 		});
 
-		$wire->addHookProperty('Page::isVideo', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::isVideo', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getTypString($page) === 'video';
 		});
 
-		$wire->addHookProperty('Page::isPdf', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::isPdf', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getTypString($page) === 'pdf';
 		});
 
-		$wire->addHookProperty('Page::pageimage', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::pageimage', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getPrimaryPageimage($page);
 		});
 
-		$wire->addHookProperty('Page::dimensions', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::dimensions', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getPrimaryDimensionsStr($page);
 		});
 
-		$wire->addHookProperty('Page::filesize', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::filesize', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getPrimaryFilesizeStr($page);
 		});
 
-		$wire->addHookProperty('Page::focus', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::focus', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getMediaFocus($page);
 		});
 
-		$wire->addHookProperty('Page::isSvg', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::isSvg', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$img = $api->getPrimaryPageimage($page);
 			$event->return = ($img instanceof Pageimage && strtolower((string) $img->ext) === 'svg');
 		});
 
-		$wire->addHookProperty('Page::usedOnPages', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::usedOnPages', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getReferencingPages($page);
 		});
 
-		$wire->addHookProperty('Page::usageCount', function(HookEvent $event) use ($wire) {
+		$wire->addHookProperty('Page::usageCount', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$event->return = $api->getReferencingPages($page)->count();
 		});
 
-		$wire->addHookMethod('Page::focalUrl', function(HookEvent $event) use ($wire) {
+		$wire->addHookMethod('Page::focalUrl', function(HookEvent $event) use ($api) {
 			$page = $event->object;
 			if(!$page instanceof Page || $page->template->name !== self::ITEM_TEMPLATE) return;
-			$api = new self($wire);
 			$img = $api->getPrimaryPageimage($page);
 			if(!$img instanceof Pageimage) {
 				$event->return = '';

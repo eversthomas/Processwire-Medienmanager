@@ -100,33 +100,55 @@ Das allein ersetzt keinen **Update-Klick**. Nach Dateiänderungen immer **Module
 
 ## Bedienung für Redakteure
 
-*Hier können später ausführliche Anleitungen ergänzt werden. Kurzfassung:*
-
 ### Übersicht
 
-- **Einstellungen → Medien Manager**: Raster- oder Listenansicht, Filter (Typ, Kategorie), Suche  
-- **Medien hochladen**: mehrere Dateien möglich; Titel, Kategorie, Tags optional  
-- **Bearbeiten**: Titel, Beschreibung, Tags, Alternativtext, Beschriftung, Typ, Kategorie  
-- **Kategorien**: eigene Verwaltungsseite im gleichen Menübereich  
+- Menü: **Einstellungen → Medien Manager**
+- Umschalten zwischen **Raster** und **Liste**
+- Filter: Typ (Bild/Video/PDF), Kategorie, Verwendung (**Alle / Nur unbenutzte / Nur verwendete**), Freitextsuche
+- Pro Medium: Typ-Badge, Verwendungszähler (Link-Badge), Dateiname, Abmessungen/Größe
 
 ### Medien hochladen
 
-- Erlaubte Formate u. a. JPG, PNG, GIF, WebP, MP4, MOV, PDF (Details im Upload-Dialog)  
-- Bei mehreren Dateien kann der Titel pro Dateiname gesetzt werden  
+1. Button **Hochladen** → Dialog (Drag & Drop oder Dateiauswahl)
+2. Mehrere Dateien möglich; optional Titel, Kategorie, Tags
+3. Bei mehreren Dateien: Titel oft aus dem Dateinamen
 
-### Bearbeiten und Datei ersetzen
+**Erlaubte Formate:** JPG, JPEG, PNG, GIF, WebP, SVG, MP4, MOV, PDF  
+SVGs werden serverseitig bereinigt (kein ausführbares Scripting).
 
-- **Datei ersetzen** nur mit **gleicher Dateiendung** wie die aktuelle Datei (bestehende Verweise bleiben gültig)  
-- Öffentliche URL über **URL kopieren** (Grid) in die Zwischenablage  
+### Bearbeiten
+
+- Klick auf Bearbeiten: links Vorschau (sticky), rechts Metadaten
+- Felder: Titel, Beschreibung, Tags, **Alternativtext**, **Beschriftung**, Typ, Kategorie
+- Block **Verwendung im System**: listet Seiten, die dieses Medium referenzieren
+- **Datei ersetzen** nur mit **gleicher Dateiendung** (Verweise bleiben gültig)
+- **URL kopieren** (Grid/Aktionen) → öffentliche Datei-URL in die Zwischenablage
 
 ### Bildbearbeitung
 
-- **Bild bearbeiten**: Drehen; Größe/Zuschnitt (Originaldatei wird angepasst)  
-- **Bulk „WebP erzeugen“**: WebP-Nebenversionen für ausgewählte Bilder  
+- **Drehen** und **Größe/Zuschnitt** wirken auf die Originaldatei (Master)
+- **Fokuspunkt (Focal Point):** Fadenkreuz auf dem Motiv setzen — Zuschnitte im Frontend orientieren sich daran
+- SVG: kein Pixel-Resize/Crop nötig (Vektor)
+
+### Mehrfachauswahl (Bulk)
+
+1. Checkboxen im Raster/Liste setzen (Zähler z. B. „3 von 12 ausgewählt“)
+2. Aktionen: Kategorie setzen, **WebP erzeugen**, Löschen
+3. Beim Löschen: Warnung, wenn Medien noch auf Seiten verwendet werden — erst nach Bestätigung (`force`)
+
+### Medien auf einer Seite auswählen (Feld)
+
+1. Feldtyp **Medien (Manager)** im Template
+2. Im Seiten-Editor: Picker-Modal (Suche/Filter), Auswahl je nach Feld-Limit (ein/mehrere)
+3. Erlaubte Typen können in der Feldkonfiguration eingeschränkt sein
 
 ### Suche
 
-Suchfeld berücksichtigt u. a. Titel, Tags und (falls vorhanden) Beschreibung, Alternativtext, Beschriftung.
+Berücksichtigt u. a. Titel, Tags, Beschreibung, Alternativtext und Beschriftung.
+
+### Kategorien
+
+Eigene Verwaltungsseite im Medien-Manager-Menü: anlegen und löschen; Zuweisung beim Upload, im Edit und per Bulk.
 
 ---
 
@@ -136,16 +158,21 @@ Suchfeld berücksichtigt u. a. Titel, Tags und (falls vorhanden) Beschreibung, A
 
 | Version | Kurz |
 |---------|------|
-| 1.9 | Phase 6: CSRF+POST für Schreib-API, Upload-Limit (ini + MB-Kappe), Bulk-ID-Limit, `SECURITY.md`, Test-Endpoint ohne GET-Werte |
-| 1.8 | README (GitHub); Deinstallationsstrategie; Config-Cleanup bei Uninstall |
-| 1.7 | Traits unter `lib/`; `API.md`; PHPDoc API |
-| 1.6 | Bildbearbeitung Master-Datei, Bulk-WebP, … |
+| 2.3.1 | Konsolidierung: Usage-Filter inkl. Page-Referenzen; Inputfield-Version sync; Hook-API-Cache; Redakteurs-README + Smoke-Checkliste |
+| 2.3.0 | Phase 11: Verwendungsnachweis, unbenutzte Medien, Focal Point, SVG-Sanitizer |
+| 2.2.0 | Phase 10: Frontend-Mini-API, responsive `<picture>`/WebP |
+| 2.1.0 | Phase 8: Core-Harmonisierung (PageArray blank, Hooks) |
+| 2.0 | Phase 7: Fieldtype + Template-Snippets |
+| 1.9 | Phase 6: CSRF+POST, Upload-Limit, Bulk-ID-Limit, `SECURITY.md` |
 
 ---
 
 ## Erweiterte Hinweise
 
-*Platz für später: Fieldtype im Frontend, Performance, Backup-Strategie.*
+- **Frontend-Ausgabe:** siehe [`API.md`](API.md) (`$page->mein_feld->render()`, Helper-Properties).
+- **Performance:** Thumbnail-Slots sind fest; WebP/Picture erzeugen Variationen on demand — bei sehr großen Bibliotheken Pagination und Filter nutzen.
+- **Backup:** vor Massenlöschung oder Deinstallation Seiten- und Dateibackup empfehlen.
+- **Nach Modul-Update:** im Backend **Module → Medien Manager → aktualisieren** (nicht nur Refresh).
 
 ---
 

@@ -179,6 +179,7 @@ Medien können im gesamten ProcessWire-System rückwärts aufgespürt werden:
 - In der Toolbar der Medienübersicht filtert das Dropdown **„Alle Medien“ / „Nur unbenutzte“ / „Nur verwendete“** verwaiste Assets in Sekundenschnelle heraus (`usage=unused`).
 - Über die Bulk-Auswahl können unbenutzte Assets mit einem Klick bereinigt werden.
 - In der API: `$api->findMedia(['usage' => 'unused'])`.
+- **Konsistenz (ab 2.3.1):** `getAllUsedMediaIds()` und `getAllMediaUsageCounts()` nutzen dieselbe Feldmenge wie `getReferencingPages()` (`FieldtypeMedienManager` + passende `FieldtypePage`-Felder) über `getMediaReferenceFields()`.
 
 ### 3. Focal Point (Intelligenter Crop)
 - **Visueller Reticle-Editor:** Im Bildbearbeitungs-Dialog (`imageedit`) kann per Klick oder Drag ein Fokuspunkt auf das Hauptmotiv gesetzt und gespeichert werden.

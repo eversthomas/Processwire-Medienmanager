@@ -225,6 +225,7 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 | Datum | Änderung |
 |-------|----------|
+| 2026-10-25 | **Konsolidierung 2.3.1** (nur Modulcode): Usage-Queries angeglichen, Inputfield-Version sync, Request-API-Cache in Frontend-Hooks, Redakteurs-README + Smoke-Checkliste in `SECURITY.md`. Kein Core-Eingriff. |
 | 2026-04-13 | Erstversion |
 | 2026-04-13 | Phase 0 im Code umgesetzt — **Checkboxen `[ ]` erst nach deiner Test-Bestätigung** auf `[x]` setzen. |
 | 2026-04-13 | **Phase 1** im Code umgesetzt (Mehrfach-Upload, Slot-Konstanten, natives `loading="lazy"`). Checkboxen `[ ]` → `[x]` nach deiner Bestätigung. |
