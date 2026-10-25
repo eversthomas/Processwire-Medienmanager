@@ -11,7 +11,8 @@ Kurzübersicht über das **Bundle** (Process-Modul, API, Traits, Inputfield, Fie
 | `bsProcessMedienManager.module.php` | Process: `execute*`-Routen, Rechte, Konfiguration; **dünne Fassade** |
 | `lib/MediaManagerAjaxTrait.php` | JSON-Endpunkte für Admin-JS / Picker |
 | `lib/MediaManagerRenderTrait.php` | Admin-HTML (Grid, Listen, Formulare) |
-| `MediaManagerAPI.php` | Domänenlogik: Suche, Dateien, Kategorien, Bild/WebP |
+| `MediaManagerAPI.php` | Domänen-**Fassade** (hookbare öffentliche API) |
+| `lib/services/` | Implementierung: Items, Files, Image, Usage, Render, Install, SVG |
 | `InputfieldMedienManager.module.php` | Backend-Feld-UI (Modal-Picker) |
 | `FieldtypeMedienManager.module.php` | Feldspeicher (Referenzen auf Medien-**Pages**) |
 | `MedienManagerField.php` | `Field`-Unterklasse (`@property`-Doku) |
@@ -55,6 +56,8 @@ Der Feldwert ist immer ein **`PageArray`**. Pro Eintrag:
 ## `MediaManagerAPI`
 
 Instanziierung: `new MediaManagerAPI($wire)` — im Process-Modul über `api()`.
+
+Ab **2.4.0** ist die Klasse eine **Fassade**: gleiche öffentlichen Methoden wie zuvor; Implementierung in Services unter `lib/services/` (`MediaItemService`, `MediaFileService`, `MediaImageService`, `MediaUsageService`, `MediaRenderService`, `MediaInstallService`, `MediaSvgSanitizer`). Templates und Process-Code rufen weiterhin die Fassade auf.
 
 **Suche & Zugriff:** `findMedia()` (u. a. `typ`, `typs` für Mehrfach-Typfilter, `q`, `kategorie_id`), `getMediaItem()`, `getKategorien()`
 

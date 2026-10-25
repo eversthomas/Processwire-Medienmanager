@@ -36,10 +36,11 @@ Hinweis: Detaillierte Sicherheitsübersicht → [`SECURITY.md`](SECURITY.md).
 ```
 bsProcessMedienManager/
 ├── bsProcessMedienManager.module.php   # Process-Modul (Routen, Konfiguration)
-├── MediaManagerAPI.php                 # Domänen-API
+├── MediaManagerAPI.php                 # Domänen-Fassade (hookbar)
 ├── lib/
 │   ├── MediaManagerAjaxTrait.php       # JSON-Endpunkte
-│   └── MediaManagerRenderTrait.php     # Admin-Markup
+│   ├── MediaManagerRenderTrait.php     # Admin-Markup
+│   └── services/                       # Domänen-Services (Items, Files, Image, …)
 ├── InputfieldMedienManager.module.php
 ├── FieldtypeMedienManager.module.php
 ├── js/ · css/
@@ -158,6 +159,7 @@ Eigene Verwaltungsseite im Medien-Manager-Menü: anlegen und löschen; Zuweisung
 
 | Version | Kurz |
 |---------|------|
+| 2.4.0 | Architektur: Domänenlogik in Services unter `lib/services/`; `MediaManagerAPI` als stabile Fassade |
 | 2.3.1 | Konsolidierung: Usage-Filter inkl. Page-Referenzen; Inputfield-Version sync; Hook-API-Cache; Redakteurs-README + Smoke-Checkliste |
 | 2.3.0 | Phase 11: Verwendungsnachweis, unbenutzte Medien, Focal Point, SVG-Sanitizer |
 | 2.2.0 | Phase 10: Frontend-Mini-API, responsive `<picture>`/WebP |

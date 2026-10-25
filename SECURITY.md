@@ -42,7 +42,7 @@ Kurztest im Admin — jeweils mit Rolle, die `medien-manager` hat (Picker zusät
 
 | # | Check | Erwartung |
 |---|--------|-----------|
-| 1 | Modul aktualisieren (nicht nur Refresh) | Version **2.3.1**, keine PHP-Fehler |
+| 1 | Modul aktualisieren (nicht nur Refresh) | Version **2.4.0**, keine PHP-Fehler |
 | 2 | Medien Manager öffnen (Raster + Liste) | Grid/Liste laden, Filter sichtbar |
 | 3 | Eine Bilddatei + eine SVG hochladen | Items erscheinen; SVG ohne Script-Reste nutzbar |
 | 4 | Medium bearbeiten, speichern | Metadaten bleiben; CSRF ok |

@@ -225,6 +225,7 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 | Datum | Änderung |
 |-------|----------|
+| 2026-10-25 | **Architektur 2.4.0**: Domänenlogik aus `MediaManagerAPI` in `lib/services/*` geschnitten; Fassade behält öffentliche/hookbare Methoden. Kein Core-Eingriff. |
 | 2026-10-25 | **Konsolidierung 2.3.1** (nur Modulcode): Usage-Queries angeglichen, Inputfield-Version sync, Request-API-Cache in Frontend-Hooks, Redakteurs-README + Smoke-Checkliste in `SECURITY.md`. Kein Core-Eingriff. |
 | 2026-04-13 | Erstversion |
 | 2026-04-13 | Phase 0 im Code umgesetzt — **Checkboxen `[ ]` erst nach deiner Test-Bestätigung** auf `[x]` setzen. |

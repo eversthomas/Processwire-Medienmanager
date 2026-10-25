@@ -93,7 +93,7 @@ class FieldtypeMedienManager extends FieldtypeMulti {
 	public static function getModuleInfo(): array {
 		return [
 			'title'    => 'Medien (Manager)',
-			'version'  => '2.3.1',
+			'version'  => '2.4.0',
 			'summary'  => 'Referenzen auf Medien-Items (Bibliothek) — vergleichbar mit Image/Images, inkl. Template-Snippets.',
 			'requires' => ['InputfieldMedienManager'],
 			'installs' => ['InputfieldMedienManager'],
