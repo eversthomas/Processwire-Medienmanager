@@ -198,18 +198,20 @@ trait MediaManagerRenderTrait {
 			? "<button type='button' class='mm-btn-copy-url' data-url='" . $pubAttr . "' title='Öffentliche URL kopieren'><i class='fa fa-link'></i></button>"
 			: '';
 
-		$actionsInner = "<a href='./edit/?id={$item->id}' class='mm-btn-edit' title='Bearbeiten'><i class='fa fa-pencil'></i></a>"
-			. ($this->api()->getPrimaryPageimage($item) ? "<a href='./imageedit/?id={$item->id}' class='mm-btn-imageedit' title='Bild bearbeiten'><i class='fa fa-crop'></i></a>" : '')
+		$editHref = "./edit/?id={$item->id}";
+		$actionsInner = "<a href='{$editHref}' class='mm-btn-edit' title='Bearbeiten'><i class='fa fa-pencil'></i></a>"
+			. ($this->api()->getPrimaryPageimage($item) ? "<a href='./imageedit/?id={$item->id}' class='mm-btn-imageedit' title='Drehen / Größe'><i class='fa fa-crop'></i></a>" : '')
 			. $copyBtn
 			. "<button type='button' class='mm-btn-duplicate' data-id='{$item->id}' data-csrf-name='" . $sanitizer->entities($csrfName) . "' data-csrf-val='" . $sanitizer->entities($csrfVal) . "' title='Duplizieren'><i class='fa fa-files-o'></i></button>"
 			. "<button type='button' class='mm-btn-delete' data-id='{$item->id}' data-csrf-name='" . $sanitizer->entities($csrfName) . "' data-csrf-val='" . $sanitizer->entities($csrfVal) . "' title='Löschen'><i class='fa fa-trash'></i></button>";
 
-		return "<div class='mm-grid-item uk-transition-toggle' tabindex='0' data-id='{$item->id}' data-typ='" . $sanitizer->entities($typ) . "' data-usage='{$usageCount}'>
+		return "<div class='mm-grid-item uk-transition-toggle' tabindex='0' data-id='{$item->id}' data-typ='" . $sanitizer->entities($typ) . "' data-usage='{$usageCount}' data-mm-edit-href='{$editHref}'>
 			<label class='mm-grid-select'>
 				<input type='checkbox' class='mm-bulk-cb' value='{$item->id}' aria-label='Auswahl'>
 			</label>
-			<div class='mm-grid-thumb mm-grid-thumb-cover'>
+			<div class='mm-grid-thumb mm-grid-thumb-cover mm-grid-thumb-open'>
 				{$thumbInner}
+				<a href='{$editHref}' class='mm-grid-thumb-link' title='Bearbeiten' aria-label='Bearbeiten: {$fileLabel}'></a>
 				<div class='mm-grid-overlay'>
 					<div class='mm-grid-actions-inner'>{$actionsInner}</div>
 				</div>
@@ -369,6 +371,52 @@ trait MediaManagerRenderTrait {
 		</div>";
 	}
 
+	/**
+	 * Zugeklappte PHP-Snippets für Templates (inkl. WebP-/Fokus-Hinweis).
+	 */
+	protected function _renderEditDevSnippets(Page $item): string {
+		$sanitizer = $this->wire->sanitizer;
+		$mmFields  = $this->wire->fields->find('type=FieldtypeMedienManager');
+		$fn        = $mmFields->count() ? (string) $mmFields->first()->name : 'mein_feld';
+		$fn        = $sanitizer->fieldName($fn) ?: 'mein_feld';
+		$id        = (int) $item->id;
+
+		$h = static function(string $s): string {
+			return htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+		};
+
+		$viaField = implode("\n", [
+			'// Über ein FieldtypeMedienManager-Feld (Beispiel: $page->' . $fn . ')',
+			'echo $page->' . $fn . '->render();',
+			'',
+			'echo $page->' . $fn . '->render([',
+			"    'width'     => 1200,",
+			"    'crop'      => true,",
+			"    'focus_css' => true, // object-position aus Fokuspunkt",
+			"    'webp'      => true, // Standard: <picture> mit WebP + Fallback",
+			"    'class'     => 'mein-bild',",
+			']);',
+		]);
+
+		$viaId = implode("\n", [
+			'// Direkt über die Medien-Item-Seite (ID ' . $id . ')',
+			'$media = $pages->get(' . $id . ');',
+			"echo \$media->render(['width' => 800, 'focus_css' => true]);",
+		]);
+
+		return "
+		<details class='mm-edit-snippets'>
+			<summary><i class='fa fa-code'></i> Für Templates <span class='uk-text-meta'>PHP-Beispiele</span></summary>
+			<div class='mm-edit-snippets-body'>
+				<p class='mm-hint'><strong>WebP:</strong> <code>render()</code> liefert standardmäßig ein <code>&lt;picture&gt;</code> mit WebP-<code>&lt;source&gt;</code> und JPEG/PNG-Fallback. Fokuspunkt: Option <code>focus_css =&gt; true</code> setzt <code>object-position</code> für Zuschnitte auf kleinen Viewports.</p>
+				<p class='uk-text-meta uk-margin-small-top'>Feld-Beispiel:</p>
+				<pre class='mm-edit-snippets-code'>{$h($viaField)}</pre>
+				<p class='uk-text-meta uk-margin-small-top'>Dieses Medium:</p>
+				<pre class='mm-edit-snippets-code'>{$h($viaId)}</pre>
+			</div>
+		</details>";
+	}
+
 	protected function _renderEditForm(Page $item): string {
 		$sanitizer  = $this->wire->sanitizer;
 		$csrfName   = $this->wire->session->CSRF->getTokenName();
@@ -376,11 +424,45 @@ trait MediaManagerRenderTrait {
 		$kategorien = $this->api()->getKategorien();
 
 		$vorschau = '';
-		$primImg    = $this->api()->getPrimaryPageimage($item);
+		$primImg  = $this->api()->getPrimaryPageimage($item);
 		$primFile = $this->api()->getPrimaryNonImageFile($item);
+		$hasRasterFocal = false;
+		$focus = ['top' => 50.0, 'left' => 50.0];
+
 		if($primImg instanceof Pageimage) {
-			$thumbUrl = $this->api()->getThumbnailUrlForSlot($item, 'edit');
-			$vorschau = "<div class='mm-edit-preview'><img src='" . $sanitizer->entities($thumbUrl) . "' alt='' loading='lazy'></div>";
+			$imgUrl = $sanitizer->entities($primImg->url);
+			$isSvg  = strtolower((string) $primImg->ext) === 'svg';
+			if($isSvg) {
+				$vorschau = "<div class='mm-edit-preview'><img src='{$imgUrl}' alt='' loading='lazy'></div>";
+			} else {
+				$hasRasterFocal = true;
+				$focus = $this->api()->getMediaFocus($item);
+				$vorschau = "
+				<div class='mm-edit-preview mm-edit-preview-focal'>
+					<div class='mm-imageedit-canvas mm-edit-canvas' id='mm-canvas-wrap'>
+						<div class='mm-imageedit-stage' id='mm-canvas-stage'>
+							<img id='mm-edit-img' src='{$imgUrl}' alt='' draggable='false'>
+							<div id='mm-focal-point' class='mm-focal-point' style='top: {$focus['top']}%; left: {$focus['left']}%;' title='Fokuspunkt verschieben'>
+								<div class='mm-focal-reticle'></div>
+							</div>
+						</div>
+					</div>
+					<div class='mm-edit-focal-bar'>
+						<p class='mm-imageedit-section-title'>Fokus setzen</p>
+						<p class='mm-hint'>Klicke oder ziehe im Bild auf das Hauptmotiv. Bei responsivem Zuschnitt (<code>object-fit: cover</code> / <code>focus_css</code>) bleibt dieser Punkt im sichtbaren Bereich.</p>
+						<div class='mm-edit-focal-coords'>
+							<span class='uk-text-meta'>X:</span> <strong id='mm-focal-x-val'>{$focus['left']}%</strong>
+							<span class='uk-text-meta'>Y:</span> <strong id='mm-focal-y-val'>{$focus['top']}%</strong>
+						</div>
+						<div class='mm-edit-focal-actions'>
+							<button type='button' class='uk-button uk-button-default uk-button-small mm-focal-reset-btn' id='mm-focal-reset'>
+								<i class='fa fa-undo'></i> Zentrieren
+							</button>
+							<span class='uk-text-meta'>Wird mit „Speichern“ übernommen.</span>
+						</div>
+					</div>
+				</div>";
+			}
 		} elseif($primFile) {
 			$vorschau = "<div class='mm-edit-preview mm-edit-preview-file'><i class='fa fa-file-o'></i><span>" . $sanitizer->entities($primFile->basename) . "</span></div>";
 		}
@@ -414,14 +496,14 @@ trait MediaManagerRenderTrait {
 		}
 
 		$previewBox = $vorschau !== ''
-			? "<div class='mm-edit-preview-sticky uk-card uk-card-default uk-card-body uk-padding-small'>{$vorschau}</div>"
+			? "<div class='mm-edit-preview-panel'>{$vorschau}</div>"
 			: '';
 
 		$refPages = $this->api()->getReferencingPages($item);
-		$usageHtml = "<div class='mm-edit-usage uk-card uk-card-default uk-card-body uk-padding-small uk-margin-top'>";
-		$usageHtml .= "<h4 class='uk-card-title uk-margin-remove-bottom'><i class='fa fa-link'></i> Verwendung im System</h4>";
+		$usageHtml = "<div class='mm-edit-usage'>";
+		$usageHtml .= "<h4><i class='fa fa-link'></i> Verwendung im System</h4>";
 		if($refPages->count() > 0) {
-			$usageHtml .= "<p class='mm-hint uk-margin-small-top'>Verwendet auf <strong>{$refPages->count()} Seite(n)</strong>:</p>";
+			$usageHtml .= "<p class='mm-hint'>Verwendet auf <strong>{$refPages->count()} Seite(n)</strong>:</p>";
 			$usageHtml .= "<ul class='uk-list uk-list-bullet mm-usage-page-list'>";
 			foreach($refPages as $refPage) {
 				$editLink = $this->wire->config->urls->admin . 'page/edit/?id=' . $refPage->id;
@@ -430,21 +512,28 @@ trait MediaManagerRenderTrait {
 			}
 			$usageHtml .= "</ul>";
 		} else {
-			$usageHtml .= "<p class='uk-text-meta uk-margin-small-top'><span class='uk-label uk-label-warning'>Nicht verwendet</span> Keine aktiven Verknüpfungen. Das Medium kann bedenkenlos gelöscht werden.</p>";
+			$usageHtml .= "<p class='uk-text-meta'><span class='uk-label uk-label-warning'>Nicht verwendet</span> Keine aktiven Verknüpfungen. Das Medium kann bedenkenlos gelöscht werden.</p>";
 		}
 		$usageHtml .= "</div>";
 
+		$snippets = $this->_renderEditDevSnippets($item);
+		$imageEditBtn = ($primImg instanceof Pageimage)
+			? "<a href='../imageedit/?id={$item->id}' class='uk-button uk-button-default'><i class='fa fa-crop'></i> Drehen / Größe</a>"
+			: '';
+
 		return "
 		<div class='mm-edit-wrap'>
-			<div class='uk-grid-medium' uk-grid>
-				<div class='uk-width-1-1 uk-width-1-3@m'>
+			<div class='mm-edit-layout'>
+				<div class='mm-edit-col-media'>
 					{$previewBox}
 					{$usageHtml}
 				</div>
-				<div class='uk-width-1-1 uk-width-2-3@m'>
-					<form method='post' action='../save/' class='mm-edit-form'>
+				<div class='mm-edit-col-form'>
+					<form method='post' action='../save/' class='mm-edit-form' id='mm-edit-form'>
 						<input type='hidden' name='{$csrfName}' value='{$csrfVal}'>
 						<input type='hidden' name='id' value='{$item->id}'>
+						" . ($hasRasterFocal ? "<input type='hidden' name='mm_focus_top' id='mm-focal-top' value='{$focus['top']}'>
+						<input type='hidden' name='mm_focus_left' id='mm-focal-left' value='{$focus['left']}'>" : '') . "
 						<div class='uk-margin'>
 							<label class='uk-form-label'>Titel</label>
 							<input type='text' name='mm_titel' value='" . $sanitizer->entities($titelForm) . "' class='uk-input' required>
@@ -475,14 +564,14 @@ trait MediaManagerRenderTrait {
 						</div>
 						<div class='mm-edit-actions'>
 							<button type='submit' class='uk-button uk-button-primary'><i class='fa fa-save'></i> Speichern</button>
-							<a href='../' class='uk-button uk-button-default'>Abbrechen</a>"
-							. ($this->api()->getPrimaryPageimage($item) ? "<a href='../imageedit/?id={$item->id}' class='uk-button uk-button-default'><i class='fa fa-crop'></i> Bild bearbeiten</a>" : '')
-							. "
+							<a href='../' class='uk-button uk-button-default'>Abbrechen</a>
+							{$imageEditBtn}
 							<button type='button' class='mm-btn-delete-single uk-button uk-button-danger' data-id='{$item->id}' data-csrf-name='" . $sanitizer->entities($csrfName) . "' data-csrf-val='" . $sanitizer->entities($csrfVal) . "'>
 								<i class='fa fa-trash'></i> Löschen
 							</button>
 						</div>
 					</form>
+					{$snippets}
 					<div class='mm-edit-replace uk-margin'>
 						<label class='uk-form-label'>Datei ersetzen</label>
 						<p class='mm-hint'>Gleiche Dateiendung wie die aktuelle Datei. Verknüpfungen im Frontend bleiben gültig.</p>

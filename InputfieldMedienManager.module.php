@@ -18,7 +18,7 @@ class InputfieldMedienManager extends Inputfield implements InputfieldHasArrayVa
 	public static function getModuleInfo(): array {
 		return [
 			'title'    => 'Medien Manager Inputfield',
-			'version'  => '2.5.1',
+			'version'  => '2.6.1',
 			'summary'  => 'Modal-Picker zur Auswahl von Medien aus dem Medien Manager.',
 			'requires' => ['bsProcessMedienManager'],
 		];

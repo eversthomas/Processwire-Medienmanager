@@ -97,7 +97,7 @@ class FieldtypeMedienManager extends FieldtypeMulti implements FieldtypeHasPagei
 	public static function getModuleInfo(): array {
 		return [
 			'title'    => 'Medien (Manager)',
-			'version'  => '2.5.1',
+			'version'  => '2.6.1',
 			'summary'  => 'Referenzen auf Medien-Items (Bibliothek) — vergleichbar mit Image/Images, inkl. Template-Snippets und TinyMCE-Auswahl.',
 			'requires' => ['InputfieldMedienManager'],
 			'installs' => ['InputfieldMedienManager'],
@@ -472,12 +472,14 @@ class FieldtypeMedienManager extends FieldtypeMulti implements FieldtypeHasPagei
 			'// 1-Zeiler: Automatisch responsives <picture> mit WebP, srcset & Fallback',
 			'echo $page->' . $fn . '->render();',
 			'',
-			'// Mit Optionen (z. B. Zielbreite, Bildzuschnitt, eigene CSS-Klasse):',
+			'// Mit Optionen (Zielbreite, Zuschnitt, Fokuspunkt, CSS-Klasse):',
 			'echo $page->' . $fn . '->render([',
-			"    'width'   => 1200,",
-			"    'crop'    => true,",
-			"    'class'   => 'hero-img',",
-			"    'loading' => 'lazy',",
+			"    'width'     => 1200,",
+			"    'crop'      => true,",
+			"    'focus_css' => true, // object-position aus Fokuspunkt",
+			"    'webp'      => true, // Standard: WebP-<source> + Fallback",
+			"    'class'     => 'hero-img',",
+			"    'loading'   => 'lazy',",
 			']);',
 		]);
 

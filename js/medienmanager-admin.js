@@ -297,24 +297,26 @@
 		var metaLine = '<div class="mm-grid-meta uk-text-meta">' + typBadge + specsHtml + '</div>';
 
 		var showImgEdit = data.hasImage || typ === 'bild';
+		var editHref = './edit/?id=' + data.id;
 		var thumbInner = data.thumb
 			? '<img class="mm-grid-img" src="' + escapeHtml(data.thumb) + '" alt="' + fileLabel + '" loading="lazy">'
 			: '<span class="mm-grid-icon"><i class="fa fa-file"></i></span>';
 		var imgEditBtn = showImgEdit
-			? '<a href="./imageedit/?id=' + data.id + '" class="mm-btn-imageedit" title="Bild bearbeiten"><i class="fa fa-crop"></i></a>'
+			? '<a href="./imageedit/?id=' + data.id + '" class="mm-btn-imageedit" title="Drehen / Größe"><i class="fa fa-crop"></i></a>'
 			: '';
 		var pubUrl = data.publicUrl || '';
 		var copyBtn = pubUrl
 			? '<button type="button" class="mm-btn-copy-url" data-url="' + escapeHtml(pubUrl) + '" title="Öffentliche URL kopieren"><i class="fa fa-link"></i></button>'
 			: '';
-		var actionsInner = '<a href="./edit/?id=' + data.id + '" class="mm-btn-edit" title="Bearbeiten"><i class="fa fa-pencil"></i></a>'
+		var actionsInner = '<a href="' + editHref + '" class="mm-btn-edit" title="Bearbeiten"><i class="fa fa-pencil"></i></a>'
 			+ imgEditBtn
 			+ copyBtn
 			+ '<button type="button" class="mm-btn-duplicate" data-id="' + data.id + '" data-csrf-name="' + escapeHtml(csrfName) + '" data-csrf-val="' + escapeHtml(csrfVal) + '" title="Duplizieren"><i class="fa fa-files-o"></i></button>'
 			+ '<button type="button" class="mm-btn-delete" data-id="' + data.id + '" data-csrf-name="' + escapeHtml(csrfName) + '" data-csrf-val="' + escapeHtml(csrfVal) + '" title="Löschen"><i class="fa fa-trash"></i></button>';
 
 		return '<label class="mm-grid-select"><input type="checkbox" class="mm-bulk-cb" value="' + data.id + '" aria-label="Auswahl"></label>'
-			+ '<div class="mm-grid-thumb mm-grid-thumb-cover">' + thumbInner
+			+ '<div class="mm-grid-thumb mm-grid-thumb-cover mm-grid-thumb-open">' + thumbInner
+			+ '<a href="' + editHref + '" class="mm-grid-thumb-link" title="Bearbeiten" aria-label="Bearbeiten: ' + fileLabel + '"></a>'
 			+ '<div class="mm-grid-overlay"><div class="mm-grid-actions-inner">' + actionsInner + '</div></div></div>'
 			+ '<div class="mm-grid-info">'
 			+ '<span class="mm-grid-filename">' + fileLabel + '</span>'
@@ -336,6 +338,7 @@
 		item.className = 'mm-grid-item mm-grid-item-new';
 		item.dataset.id = data.id;
 		item.dataset.typ = data.typ || '';
+		item.dataset.mmEditHref = './edit/?id=' + data.id;
 		item.innerHTML = gridItemInnerHtml(data);
 
 		var empty = grid.querySelector('.mm-empty');
@@ -885,6 +888,33 @@
 		});
 	}
 
+	/**
+	 * Klick auf Bildfläche (nicht Checkbox / Action-Icons) öffnet die Bildeinstellungen.
+	 */
+	function initGridThumbOpen() {
+		document.addEventListener('click', function(e) {
+			// Checkbox und Action-Icons behalten ihr eigenes Verhalten
+			if (e.target.closest('.mm-grid-select, .mm-grid-actions-inner')) {
+				return;
+			}
+			var thumb = e.target.closest('.mm-grid-thumb-open');
+			if (!thumb) return;
+			var item = thumb.closest('.mm-grid-item[data-mm-edit-href]');
+			if (!item) return;
+			var href = item.getAttribute('data-mm-edit-href');
+			if (href) window.location.href = href;
+		});
+
+		document.addEventListener('keydown', function(e) {
+			if (e.key !== 'Enter' && e.key !== ' ') return;
+			var item = e.target.closest('.mm-grid-item[data-mm-edit-href]');
+			if (!item || e.target !== item) return;
+			e.preventDefault();
+			var href = item.getAttribute('data-mm-edit-href');
+			if (href) window.location.href = href;
+		});
+	}
+
 	function initDuplicateButtons() {
 		document.addEventListener('click', function(e) {
 			var btn = e.target.closest('.mm-btn-duplicate');
@@ -927,6 +957,7 @@
 		initImageEdit();
 		initBulkBar();
 		initCopyUrlButtons();
+		initGridThumbOpen();
 		initDuplicateButtons();
 		updateBulkCount();
 	});

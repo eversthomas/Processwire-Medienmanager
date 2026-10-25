@@ -38,7 +38,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 	public static function getModuleInfo(): array {
 		return [
 			'title'       => 'Medien Manager',
-			'version'     => '2.5.1',
+			'version'     => '2.6.1',
 			'summary'     => 'Zentrales Medienmanagement für Bilder, Videos und PDFs.',
 			'author'      => 'bsProcessMedienManager',
 			'icon'        => 'photo',
@@ -130,8 +130,9 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 		if($this->wire->page && $this->wire->page->template == 'admin') {
 			$config    = $this->wire->config;
 			$moduleUrl = $config->urls->get('bsProcessMedienManager');
-			$config->styles->add($moduleUrl . 'css/medienmanager-admin.css');
-			$config->scripts->add($moduleUrl . 'js/medienmanager-admin.js');
+			$ver = $this->getModuleInfo()['version'] ?? '2.6.1';
+			$config->styles->add($moduleUrl . 'css/medienmanager-admin.css?v=' . $ver);
+			$config->scripts->add($moduleUrl . 'js/medienmanager-admin.js?v=' . $ver);
 		}
 	}
 
@@ -457,6 +458,12 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 		$item = $this->api()->saveMediaItem($id, $data);
 
 		if($item->id) {
+			// Fokuspunkt mit Formular-Speichern übernehmen (falls Rasterbild)
+			if(isset($_POST['mm_focus_top'], $_POST['mm_focus_left'])) {
+				$top  = (float) $_POST['mm_focus_top'];
+				$left = (float) $_POST['mm_focus_left'];
+				$this->api()->setMediaFocus($item, $top, $left);
+			}
 			$this->log("Item gespeichert: ID $id");
 			$this->wire->message('Medien-Item gespeichert.');
 			$this->wire->session->redirect('../edit/?id=' . $item->id);
