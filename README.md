@@ -169,6 +169,7 @@ Eigene Verwaltungsseite im Medien-Manager-Menü: anlegen und löschen; Zuweisung
 
 | Version | Kurz |
 |---------|------|
+| 2.5.1 | TinyMCE-Fix: `getPageimages()` liefert Original-Pageimages (kein Pagefiles::add-Klon) |
 | 2.5.0 | TinyMCE: `FieldtypeHasPageimages` — Bilder aus Medien-Manager-Feld der Seite einfügen |
 | 2.4.0 | Architektur: Domänenlogik in Services unter `lib/services/`; `MediaManagerAPI` als stabile Fassade |
 | 2.3.1 | Konsolidierung: Usage-Filter inkl. Page-Referenzen; Inputfield-Version sync; Hook-API-Cache; Redakteurs-README + Smoke-Checkliste |
