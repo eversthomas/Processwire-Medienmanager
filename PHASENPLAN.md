@@ -221,10 +221,24 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 ---
 
+## Phase 12 — Editor-Integration & offene Konsolidierung
+
+**Ziel:** Parität mit PW-Image-Feldern im Seiten-Editor wo sinnvoll; optionale Härtepunkte ohne Feature-Flut.
+
+| # | Schritt | Beschreibung | Nach |
+|---|---------|--------------|-----|
+| 12.1 | `[ ]` | **TinyMCE / pwimage:** `FieldtypeMedienManager` implementiert `FieldtypeHasPageimages` (`getPageimages()` liefert Primär-`Pageimage`s der referenzierten Medien-Items). Redakteure können Bilder aus dem Medien-Manager-Feld der **gleichen Seite** wie bei einem Image-Feld in TinyMCE einfügen. Kein Core-Fork; Upload-Ziel in TinyMCE bleibt Image-Feld (Auswahl aus Manager). | Phase 7, 2.4.0 |
+| 12.2 | `[ ]` | **Doku/Smoke:** README + `SECURITY.md`-Checkliste um TinyMCE-Einfügen ergänzen; manuell testen (Feld mit Bildern, Einfügen, Caption/Alt, Seite speichern). | 12.1 |
+| 12.3 | `[ ]` | **Optional — automatisierte Smoke-Tests:** Minimale Tests falls Testumgebung verfügbar; sonst weiter manuelle Checkliste. | — |
+| 12.4 | `[ ]` | **Optional — `Page::render`-Hook dokumentieren:** Hinweis in `API.md`, dass `$media->render()` den normalen Page-Render für `medienmanager-item` ersetzt. | — |
+
+---
+
 ## Changelog dieses Plans
 
 | Datum | Änderung |
 |-------|----------|
+| 2026-10-25 | **Phase 12** ergänzt: TinyMCE/`FieldtypeHasPageimages` (12.1–12.2), optionale Tests und Render-Hook-Doku (12.3–12.4). |
 | 2026-10-25 | **Architektur 2.4.0**: Domänenlogik aus `MediaManagerAPI` in `lib/services/*` geschnitten; Fassade behält öffentliche/hookbare Methoden. Kein Core-Eingriff. |
 | 2026-10-25 | **Konsolidierung 2.3.1** (nur Modulcode): Usage-Queries angeglichen, Inputfield-Version sync, Request-API-Cache in Frontend-Hooks, Redakteurs-README + Smoke-Checkliste in `SECURITY.md`. Kein Core-Eingriff. |
 | 2026-04-13 | Erstversion |
