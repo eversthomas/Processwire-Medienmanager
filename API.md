@@ -25,6 +25,7 @@ Kurzübersicht über das **Bundle** (Process-Modul, API, Traits, Inputfield, Fie
 - **Laufzeitwert:** `PageArray` gültiger Medien-Pages (versteckte Items werden mit `include=all` geladen).
 - **Vorlagen** (beim Anlegen eines neuen Feldes): u. a. *Einzelbild (wie Image)*, *Mehrere Bilder (wie Images)*, *Einzelmedium*, *Mehrere Medien* — setzen `maxItems` und `allowedTypes` (`bild` / `video` / `pdf`).
 - **Feldkonfiguration:** Zusätzlich zu **maxItems** ein einklappbarer Block **PHP-Beispiele (Frontend)** mit kopierbaren Snippets (Alternativtext, `figure`/`figcaption`, Lazy Loading).
+- **TinyMCE (ab 2.5.0):** implementiert `FieldtypeHasPageimages` — `getPageimages()` liefert die Primär-`Pageimage`s der referenzierten Items, damit `ProcessPageEditImageSelect` / pwimage sie auf derselben Seite auswählen kann (kein Core-Fork).
 
 ### Template-API (Frontend)
 

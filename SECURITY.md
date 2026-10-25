@@ -42,7 +42,7 @@ Kurztest im Admin — jeweils mit Rolle, die `medien-manager` hat (Picker zusät
 
 | # | Check | Erwartung |
 |---|--------|-----------|
-| 1 | Modul aktualisieren (nicht nur Refresh) | Version **2.4.0**, keine PHP-Fehler |
+| 1 | Modul aktualisieren (nicht nur Refresh) | Version **2.5.0**, keine PHP-Fehler |
 | 2 | Medien Manager öffnen (Raster + Liste) | Grid/Liste laden, Filter sichtbar |
 | 3 | Eine Bilddatei + eine SVG hochladen | Items erscheinen; SVG ohne Script-Reste nutzbar |
 | 4 | Medium bearbeiten, speichern | Metadaten bleiben; CSRF ok |
@@ -52,5 +52,6 @@ Kurztest im Admin — jeweils mit Rolle, die `medien-manager` hat (Picker zusät
 | 8 | Löschen eines verwendeten Mediums | Warnung mit Seitenliste; erst mit Bestätigung weg |
 | 9 | Bulk: Kategorie setzen / WebP (Bilder) | Erfolgsmeldung; keine CSRF-Fehler |
 | 10 | Frontend: `$page->feld->render()` | `<picture>`/Bild bzw. Video/PDF-Link wie zuvor |
+| 11 | TinyMCE pwimage: Seite mit Medien-Manager-Feld (Bilder) + Textfeld | Zugewiesene Primärbilder erscheinen in der Bildauswahl; Einfügen + Speichern ok |
 
 *Bei neuen Features diese Liste und die Tabellen oben mitpflegen.*

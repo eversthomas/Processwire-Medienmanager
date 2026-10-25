@@ -143,6 +143,16 @@ SVGs werden serverseitig bereinigt (kein ausführbares Scripting).
 2. Im Seiten-Editor: Picker-Modal (Suche/Filter), Auswahl je nach Feld-Limit (ein/mehrere)
 3. Erlaubte Typen können in der Feldkonfiguration eingeschränkt sein
 
+### Bilder in TinyMCE einfügen
+
+Wenn auf derselben Seite ein **Medien (Manager)**-Feld Bilder enthält und ein Textfeld TinyMCE mit dem ProcessWire-Bild-Button (**pwimage**) nutzt:
+
+1. Medien im Manager-Feld der Seite zuweisen und Seite speichern (falls neu)
+2. Im Editor auf **Bild einfügen** (pwimage)
+3. Die Primärbilder der zugewiesenen Medien-Items erscheinen in der Auswahl — analog zu einem klassischen Bilder-Feld
+
+Hinweise: Nur Rasterbilder (inkl. SVG); Videos/PDFs nicht. Drag&Drop-Upload aus TinyMCE zielt weiter auf echte Image-Felder. Größe/Zuschnitt im Dialog wirkt auf die Datei in der **Medienbibliothek**.
+
 ### Suche
 
 Berücksichtigt u. a. Titel, Tags, Beschreibung, Alternativtext und Beschriftung.
@@ -159,6 +169,7 @@ Eigene Verwaltungsseite im Medien-Manager-Menü: anlegen und löschen; Zuweisung
 
 | Version | Kurz |
 |---------|------|
+| 2.5.0 | TinyMCE: `FieldtypeHasPageimages` — Bilder aus Medien-Manager-Feld der Seite einfügen |
 | 2.4.0 | Architektur: Domänenlogik in Services unter `lib/services/`; `MediaManagerAPI` als stabile Fassade |
 | 2.3.1 | Konsolidierung: Usage-Filter inkl. Page-Referenzen; Inputfield-Version sync; Hook-API-Cache; Redakteurs-README + Smoke-Checkliste |
 | 2.3.0 | Phase 11: Verwendungsnachweis, unbenutzte Medien, Focal Point, SVG-Sanitizer |

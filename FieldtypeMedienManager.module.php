@@ -9,9 +9,13 @@ require_once __DIR__ . '/MediaManagerAPI.php';
  * Basiert auf FieldtypeMulti (eine DB-Zeile pro referenziertem Item).
  * Beim Laden (wakeup) werden IDs zu einem PageArray aufgelöst.
  *
+ * Implementiert {@see FieldtypeHasPageimages}, damit TinyMCE (pwimage /
+ * ProcessPageEditImageSelect) Primärbilder der referenzierten Medien-Items
+ * auf derselben Seite auswählen und einfügen kann.
+ *
  * @copyright 2026 bsProcessMedienManager
  */
-class FieldtypeMedienManager extends FieldtypeMulti {
+class FieldtypeMedienManager extends FieldtypeMulti implements FieldtypeHasPageimages {
 
 	/**
 	 * Normalisiert gemischte Werte (Page/ID/Strings/Arrays) zu einer eindeutigen ID-Liste.
@@ -93,8 +97,8 @@ class FieldtypeMedienManager extends FieldtypeMulti {
 	public static function getModuleInfo(): array {
 		return [
 			'title'    => 'Medien (Manager)',
-			'version'  => '2.4.0',
-			'summary'  => 'Referenzen auf Medien-Items (Bibliothek) — vergleichbar mit Image/Images, inkl. Template-Snippets.',
+			'version'  => '2.5.0',
+			'summary'  => 'Referenzen auf Medien-Items (Bibliothek) — vergleichbar mit Image/Images, inkl. Template-Snippets und TinyMCE-Auswahl.',
 			'requires' => ['InputfieldMedienManager'],
 			'installs' => ['InputfieldMedienManager'],
 		];
@@ -105,6 +109,53 @@ class FieldtypeMedienManager extends FieldtypeMulti {
 	 */
 	public function getFieldClass(array $a = array()) {
 		return 'MedienManagerField';
+	}
+
+	/**
+	 * Primärbilder der referenzierten Medien-Items für TinyMCE / ProcessPageEditImageSelect.
+	 *
+	 * Liefert echte {@see Pageimage}-Objekte von den Medien-Pages (Bibliothek).
+	 * Videos/PDFs ohne Rasterbild werden übersprungen. Kein Upload-Ziel — nur Auswahl.
+	 *
+	 * @param Page  $page
+	 * @param Field $field
+	 * @return Pageimages
+	 */
+	public function getPageimages(Page $page, Field $field) {
+		/** @var Pageimages $pageimages */
+		$pageimages = $this->wire(new Pageimages($page));
+		$pageimages->setField($field);
+
+		$allowed = $field->get('allowedTypes');
+		if(is_array($allowed) && count($allowed) > 0 && !in_array('bild', $allowed, true)) {
+			return $pageimages;
+		}
+
+		$value = $page->get($field->name);
+		if(!$value instanceof PageArray || !$value->count()) {
+			return $pageimages;
+		}
+
+		$api = new MediaManagerAPI($this->wire());
+		$seen = [];
+
+		foreach($value as $media) {
+			if(!$media instanceof Page || !$media->id) continue;
+			if(!$api->isMediaItem($media)) continue;
+
+			$img = $api->getPrimaryPageimage($media);
+			if(!$img instanceof Pageimage) continue;
+
+			// Basename-Kollisionen (gleicher Dateiname auf verschiedenen Medien-Pages) vermeiden:
+			// ProcessPageEditImageSelect indexiert mit pageId,basename der Editor-Seite.
+			$key = strtolower((string) $img->basename);
+			if(isset($seen[$key])) continue;
+			$seen[$key] = true;
+
+			$pageimages->add($img);
+		}
+
+		return $pageimages;
 	}
 
 	// -----------------------------------------------------------------------

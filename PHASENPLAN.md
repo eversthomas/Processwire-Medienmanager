@@ -238,6 +238,7 @@ Dieses Dokument beschreibt die **geplante Reihenfolge** von Verbesserungen und E
 
 | Datum | Änderung |
 |-------|----------|
+| 2026-10-25 | **Phase 12.1–12.2** im Code umgesetzt (Version **2.5.0**): `FieldtypeHasPageimages` / `getPageimages()`; README, API.md, SECURITY-Smoke. Checkboxen `[x]` nach deiner Test-Bestätigung. |
 | 2026-10-25 | **Phase 12** ergänzt: TinyMCE/`FieldtypeHasPageimages` (12.1–12.2), optionale Tests und Render-Hook-Doku (12.3–12.4). |
 | 2026-10-25 | **Architektur 2.4.0**: Domänenlogik aus `MediaManagerAPI` in `lib/services/*` geschnitten; Fassade behält öffentliche/hookbare Methoden. Kein Core-Eingriff. |
 | 2026-10-25 | **Konsolidierung 2.3.1** (nur Modulcode): Usage-Queries angeglichen, Inputfield-Version sync, Request-API-Cache in Frontend-Hooks, Redakteurs-README + Smoke-Checkliste in `SECURITY.md`. Kein Core-Eingriff. |
