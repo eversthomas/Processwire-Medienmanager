@@ -144,7 +144,16 @@ foreach($page->meine_galerie as $media) {
 }
 ```
 
-### 4. Direkte Helper-Properties auf `$media`
+### 4. Hinweis: `Page::render`-Hook für Medien-Items
+
+`MediaManagerAPI::registerFrontendHooks()` registriert u. a. einen **`addHookBefore('Page::render', …)`**.
+
+- Gilt nur für Pages mit Template **`medienmanager-item`**.
+- Aufruf von `$media->render($options)` (oder `Page::render` mit Options-Array) liefert dann das **Medien-HTML** der Mini-API — nicht die Ausgabe einer Frontend-Template-Datei.
+- Normale Inhaltsseiten sind **unberührt**.
+- Medien-Items sind versteckte Admin-/Bibliotheks-Pages; ein klassisches Frontend-Template ist dafür nicht vorgesehen. Wer dennoch ein eigenes Template für `medienmanager-item` erwartet, muss den Hook beachten bzw. `$media->renderMedia($options)` / die API-Methoden direkt nutzen.
+
+### 5. Direkte Helper-Properties auf `$media`
 
 Für individuelle Markup-Strukturen stehen direkte Properties auf der Medien-Page zur Verfügung:
 
