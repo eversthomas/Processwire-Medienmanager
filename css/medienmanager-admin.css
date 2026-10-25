@@ -350,12 +350,18 @@
 	cursor: pointer;
 }
 
-/* Volle Bildfläche klickbar → Edit; Icons liegen darüber */
+/*
+ * Schichtmodell (unten → oben):
+ * Bild → Overlay (nur Optik) → Vollflächen-Link → Action-Icons
+ * So öffnet jeder Klick auf die Bildfläche die Einstellungen;
+ * nur die Icons fangen eigene Klicks ab.
+ */
 .mm-grid-thumb-link {
 	position: absolute;
 	inset: 0;
-	z-index: 2;
+	z-index: 4;
 	display: block;
+	background: transparent;
 	text-indent: -9999px;
 	overflow: hidden;
 }
@@ -369,20 +375,17 @@
 	object-fit: cover;
 	object-position: center;
 	transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+	z-index: 1;
+	pointer-events: none;
 }
 
 .mm-grid-item:hover .mm-grid-img {
 	transform: scale(1.05);
 }
 
-/* Frosted Glass Overlay — Fläche lässt Klicks durch zum Thumb-Link;
-   nur die Action-Icons empfangen Pointer-Events */
 .mm-grid-overlay {
 	position: absolute;
 	inset: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
 	background: rgba(15, 23, 42, 0.48);
 	backdrop-filter: blur(6px);
 	-webkit-backdrop-filter: blur(6px);
@@ -400,12 +403,29 @@
 }
 
 .mm-grid-actions-inner {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 	justify-content: center;
 	align-items: center;
 	padding: 10px;
+	pointer-events: none;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.mm-grid-item:hover .mm-grid-actions-inner,
+.mm-grid-item:focus-within .mm-grid-actions-inner {
+	opacity: 1;
+	visibility: visible;
+}
+
+.mm-grid-actions-inner > a,
+.mm-grid-actions-inner > button {
 	pointer-events: auto;
 }
 
@@ -1387,6 +1407,34 @@
 .mm-imageedit-toolbar .uk-input {
 	width: 100%;
 	border-radius: var(--mm-radius-sm);
+}
+
+.mm-imageedit-busy {
+	position: relative;
+	pointer-events: none;
+	opacity: 0.72;
+}
+
+.mm-imageedit-busy::after {
+	content: '\f110';
+	font-family: FontAwesome;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	font-size: 28px;
+	color: var(--mm-primary);
+	animation: mm-spin 0.8s linear infinite;
+	z-index: 20;
+}
+
+@keyframes mm-spin {
+	to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.mm-btn-busy {
+	opacity: 0.6;
+	cursor: wait !important;
 }
 
 /* -------------------------------------------------------------------------

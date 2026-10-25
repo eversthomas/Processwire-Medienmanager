@@ -211,10 +211,9 @@ trait MediaManagerRenderTrait {
 			</label>
 			<div class='mm-grid-thumb mm-grid-thumb-cover mm-grid-thumb-open'>
 				{$thumbInner}
+				<div class='mm-grid-overlay' aria-hidden='true'></div>
 				<a href='{$editHref}' class='mm-grid-thumb-link' title='Bearbeiten' aria-label='Bearbeiten: {$fileLabel}'></a>
-				<div class='mm-grid-overlay'>
-					<div class='mm-grid-actions-inner'>{$actionsInner}</div>
-				</div>
+				<div class='mm-grid-actions-inner'>{$actionsInner}</div>
 			</div>
 			<div class='mm-grid-info'>
 				<span class='mm-grid-filename'>{$fileLabel}</span>

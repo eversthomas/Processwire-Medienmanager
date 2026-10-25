@@ -38,7 +38,7 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 	public static function getModuleInfo(): array {
 		return [
 			'title'       => 'Medien Manager',
-			'version'     => '2.6.1',
+			'version'     => '2.6.2',
 			'summary'     => 'Zentrales Medienmanagement für Bilder, Videos und PDFs.',
 			'author'      => 'bsProcessMedienManager',
 			'icon'        => 'photo',
@@ -580,15 +580,15 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 				$this->log('Rotation fehlgeschlagen für Pageimage ' . $bild->filename, true);
 				return json_encode(['status' => 'error', 'message' => 'Rotation fehlgeschlagen']);
 			}
-			$this->api()->createVariants($this->api()->getMediaItem($item->id));
-			$itemFresh = $this->api()->getMediaItem($item->id);
-			$itemFresh->of(false);
-			$bild = $this->api()->getPrimaryPageimage($itemFresh);
-			if(!$bild instanceof Pageimage) {
-				return json_encode(['status' => 'error', 'message' => 'Kein Bild']);
-			}
+			// Kein createVariants hier: Grid-Thumbs entstehen lazily per size() —
+			// spart die große Verzögerung nach dem Drehen.
 			$bust = (string) time();
-			return json_encode(['status' => 'ok', 'url' => $bild->url . '?cb=' . $bust, 'width' => $bild->width, 'height' => $bild->height]);
+			return json_encode([
+				'status' => 'ok',
+				'url'    => $bild->url . '?cb=' . $bust,
+				'width'  => (int) $bild->width,
+				'height' => (int) $bild->height,
+			]);
 		}
 
 		if($isAjax && $input->post('action') === 'resize') {
@@ -607,19 +607,12 @@ class bsProcessMedienManager extends Process implements ConfigurableModule {
 				$this->log('Master-Resize fehlgeschlagen für Pageimage ' . $bild->filename, true);
 				return json_encode(['status' => 'error', 'message' => 'Größenänderung fehlgeschlagen']);
 			}
-			$this->api()->createVariants($this->api()->getMediaItem($item->id));
-			$itemFresh = $this->api()->getMediaItem($item->id);
-			$itemFresh->of(false);
-			$bild = $this->api()->getPrimaryPageimage($itemFresh);
-			if(!$bild instanceof Pageimage) {
-				return json_encode(['status' => 'error', 'message' => 'Kein Bild']);
-			}
 			$bust = (string) time();
 			return json_encode([
 				'status' => 'ok',
 				'url'    => $bild->url . '?cb=' . $bust,
-				'width'  => $bild->width,
-				'height' => $bild->height,
+				'width'  => (int) $bild->width,
+				'height' => (int) $bild->height,
 			]);
 		}
 

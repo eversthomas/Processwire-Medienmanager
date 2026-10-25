@@ -97,7 +97,7 @@ class FieldtypeMedienManager extends FieldtypeMulti implements FieldtypeHasPagei
 	public static function getModuleInfo(): array {
 		return [
 			'title'    => 'Medien (Manager)',
-			'version'  => '2.6.1',
+			'version'  => '2.6.2',
 			'summary'  => 'Referenzen auf Medien-Items (Bibliothek) — vergleichbar mit Image/Images, inkl. Template-Snippets und TinyMCE-Auswahl.',
 			'requires' => ['InputfieldMedienManager'],
 			'installs' => ['InputfieldMedienManager'],

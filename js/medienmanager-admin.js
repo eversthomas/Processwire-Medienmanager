@@ -56,10 +56,12 @@
 				callback(JSON.parse(xhr.responseText));
 			} catch (e) {
 				showAdminError('Ungültige Server-Antwort');
+				callback({ status: 'error', message: 'Ungültige Server-Antwort' });
 			}
 		});
 		xhr.addEventListener('error', function() {
 			showAdminError('Netzwerkfehler');
+			callback({ status: 'error', message: 'Netzwerkfehler' });
 		});
 		xhr.open('POST', url, true);
 		xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
@@ -316,8 +318,9 @@
 
 		return '<label class="mm-grid-select"><input type="checkbox" class="mm-bulk-cb" value="' + data.id + '" aria-label="Auswahl"></label>'
 			+ '<div class="mm-grid-thumb mm-grid-thumb-cover mm-grid-thumb-open">' + thumbInner
+			+ '<div class="mm-grid-overlay" aria-hidden="true"></div>'
 			+ '<a href="' + editHref + '" class="mm-grid-thumb-link" title="Bearbeiten" aria-label="Bearbeiten: ' + fileLabel + '"></a>'
-			+ '<div class="mm-grid-overlay"><div class="mm-grid-actions-inner">' + actionsInner + '</div></div></div>'
+			+ '<div class="mm-grid-actions-inner">' + actionsInner + '</div></div>'
 			+ '<div class="mm-grid-info">'
 			+ '<span class="mm-grid-filename">' + fileLabel + '</span>'
 			+ titleSecondary
@@ -463,9 +466,18 @@
 		return base + (base.indexOf('?') === -1 ? '?' : '&') + 'id=' + encodeURIComponent(id);
 	}
 
+	function setImageEditBusy(busy) {
+		document.querySelectorAll('.mm-rotate-btn, .mm-resize-btn').forEach(function(el) {
+			el.disabled = !!busy;
+			el.classList.toggle('mm-btn-busy', !!busy);
+		});
+		var wrap = document.getElementById('mm-canvas-wrap');
+		if (wrap) wrap.classList.toggle('mm-imageedit-busy', !!busy);
+	}
+
 	function handleRotate(btn) {
 		var id      = btn.dataset.id;
-		var degrees = btn.dataset.degrees;
+		var degrees = parseInt(btn.dataset.degrees, 10) || 0;
 		var csrf    = getCsrf();
 
 		var postUrl = getImageEditPostUrl(id);
@@ -474,22 +486,36 @@
 			return;
 		}
 
+		var img = document.getElementById('mm-edit-img');
+		if (img) {
+			img.style.transition = 'transform 0.2s ease';
+			img.style.transform = 'rotate(' + degrees + 'deg)';
+		}
+		setImageEditBusy(true);
+
 		var formData = new FormData();
 		formData.append('action', 'rotate');
-		formData.append('degrees', degrees);
+		formData.append('degrees', String(degrees));
 		if (csrf) formData.append(csrf.name, csrf.value);
 
 		ajaxPost(postUrl, formData, function(resp) {
+			setImageEditBusy(false);
 			if (resp.status === 'ok') {
-				var img = document.getElementById('mm-edit-img');
-				if (img) img.src = resp.url + (resp.url.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+				if (img) {
+					img.style.transition = 'none';
+					img.style.transform = '';
+					img.src = resp.url + (resp.url.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+				}
 				var wEl = document.getElementById('mm-resize-w');
 				var hEl = document.getElementById('mm-resize-h');
 				if (resp.width && wEl) wEl.value = resp.width;
 				if (resp.height && hEl) hEl.value = resp.height;
 				showAdminSuccess('Bild wurde gedreht.');
-			} else if (resp.message) {
-				showAdminError(resp.message);
+			} else {
+				if (img) {
+					img.style.transform = '';
+				}
+				if (resp.message) showAdminError(resp.message);
 			}
 		});
 	}
@@ -521,7 +547,9 @@
 		formData.append('cropping', cropping);
 		if (csrf) formData.append(csrf.name, csrf.value);
 
+		setImageEditBusy(true);
 		ajaxPost(postUrl, formData, function(resp) {
+			setImageEditBusy(false);
 			if (resp.status === 'ok') {
 				var img = document.getElementById('mm-edit-img');
 				if (img) img.src = resp.url + (resp.url.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
@@ -889,21 +917,28 @@
 	}
 
 	/**
-	 * Klick auf Bildfläche (nicht Checkbox / Action-Icons) öffnet die Bildeinstellungen.
+	 * Fallback: Klick auf Bildfläche öffnet Edit (Capture-Phase),
+	 * falls der Vollflächen-Link aus irgendwelchen Gründen nicht greift.
 	 */
 	function initGridThumbOpen() {
 		document.addEventListener('click', function(e) {
-			// Checkbox und Action-Icons behalten ihr eigenes Verhalten
-			if (e.target.closest('.mm-grid-select, .mm-grid-actions-inner')) {
+			if (e.defaultPrevented) return;
+			if (e.target.closest('.mm-grid-select, .mm-grid-actions-inner > a, .mm-grid-actions-inner > button')) {
 				return;
+			}
+			var link = e.target.closest('a.mm-grid-thumb-link');
+			if (link && link.getAttribute('href')) {
+				return; // nativer Link navigiert
 			}
 			var thumb = e.target.closest('.mm-grid-thumb-open');
 			if (!thumb) return;
 			var item = thumb.closest('.mm-grid-item[data-mm-edit-href]');
 			if (!item) return;
 			var href = item.getAttribute('data-mm-edit-href');
-			if (href) window.location.href = href;
-		});
+			if (!href) return;
+			e.preventDefault();
+			window.location.href = href;
+		}, true);
 
 		document.addEventListener('keydown', function(e) {
 			if (e.key !== 'Enter' && e.key !== ' ') return;
